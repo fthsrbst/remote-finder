@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Remote Finder</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
   </head>
   <body data-connected="false">
     <!-- Progress Bar -->
@@ -53,6 +56,24 @@
                   <line x1="12" y1="19" x2="20" y2="19"></line>
                 </svg>
                 Terminal
+              </span>
+            </div>
+            <div class="sidebar-item" id="quickSearchToggle">
+              <span class="sidebar-item-name">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <path d="m21 21-4.35-4.35"></path>
+                </svg>
+                Quick Search
+              </span>
+            </div>
+            <div class="sidebar-item" id="serverHistoryToggle">
+              <span class="sidebar-item-name">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                  <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+                Server History
               </span>
             </div>
           </div>

@@ -133,6 +133,34 @@ async function list(pathStr) {
   }
 }
 
+// Get SVG icon for file/folder
+function getFileIcon(filename, type) {
+  if (type === 'dir') {
+    return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" fill="#60A5FA"/>
+      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" stroke="#3B82F6" stroke-width="1.5" stroke-linejoin="round"/>
+    </svg>`;
+  }
+
+  const ext = filename.split('.').pop().toLowerCase();
+  const iconMap = {
+    'js': '#F7DF1E', 'jsx': '#61DAFB', 'ts': '#3178C6', 'tsx': '#3178C6', 'json': '#F59E0B',
+    'html': '#E34F26', 'css': '#1572B6', 'scss': '#CC6699',
+    'png': '#10B981', 'jpg': '#10B981', 'svg': '#10B981',
+    'md': '#374151', 'txt': '#6B7280', 'pdf': '#DC2626',
+    'py': '#3776AB', 'rb': '#CC342D', 'php': '#777BB4',
+    'zip': '#F59E0B', 'gz': '#F59E0B',
+    'sh': '#4EAA25', 'bash': '#4EAA25'
+  };
+  const color = iconMap[ext] || '#9CA3AF';
+
+  return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M26 28H6C4.89543 28 4 27.1046 4 26V6C4 4.89543 4.89543 4 6 4H18L28 14V26C28 27.1046 27.1046 28 26 28Z" fill="${color}"/>
+    <path d="M18 4L28 14H20C18.8954 14 18 13.1046 18 12V4Z" fill="#fff" fill-opacity="0.3"/>
+    <path d="M26 28H6C4.89543 28 4 27.1046 4 26V6C4 4.89543 4.89543 4 6 4H18L28 14V26C28 27.1046 27.1046 28 26 28Z" stroke="${color}" stroke-opacity="0.5" stroke-width="1" stroke-linejoin="round"/>
+  </svg>`;
+}
+
 function createListItem(item) {
   const row = document.createElement('div');
   row.className = 'file-item';
@@ -145,14 +173,8 @@ function createListItem(item) {
   nameDiv.className = 'file-item-name';
   const icon = document.createElement('div');
   icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
+  icon.innerHTML = getFileIcon(item.name, item.type);
 
-  // Add file extension for styling
-  if (item.type !== 'dir') {
-    const ext = item.name.split('.').pop().toLowerCase();
-    icon.setAttribute('data-ext', ext);
-  }
-
-  icon.textContent = item.type === 'dir' ? '📁' : '📄';
   const nameSpan = document.createElement('span');
   nameSpan.textContent = item.name;
   nameDiv.appendChild(icon);
@@ -193,14 +215,7 @@ function createGridItem(item) {
 
   const icon = document.createElement('div');
   icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
-
-  // Add file extension for styling
-  if (item.type !== 'dir') {
-    const ext = item.name.split('.').pop().toLowerCase();
-    icon.setAttribute('data-ext', ext);
-  }
-
-  icon.textContent = item.type === 'dir' ? '📁' : '📄';
+  icon.innerHTML = getFileIcon(item.name, item.type);
 
   const nameDiv = document.createElement('div');
   nameDiv.className = 'file-grid-item-name';
@@ -530,16 +545,26 @@ gridViewBtn.addEventListener('click', () => {
   list(currentPath);
 });
 
+// Real terminal instance
+let terminalInstance = null;
+let terminalSocket = null;
+let terminalFitAddon = null;
+
 // Terminal toggle
 terminalToggle.addEventListener('click', () => {
+  if (!token) {
+    alert('Please connect to a server first');
+    return;
+  }
   terminalOpen = !terminalOpen;
   if (terminalOpen) {
     terminalPanel.classList.remove('hidden');
     mainContent.classList.add('terminal-open');
-    initTerminal();
+    initRealTerminal();
   } else {
     terminalPanel.classList.add('hidden');
     mainContent.classList.remove('terminal-open');
+    destroyRealTerminal();
   }
 });
 
@@ -547,84 +572,99 @@ closeTerminal.addEventListener('click', () => {
   terminalOpen = false;
   terminalPanel.classList.add('hidden');
   mainContent.classList.remove('terminal-open');
+  destroyRealTerminal();
 });
 
-// Simple terminal implementation (basic version)
-let terminalHistory = [];
-let terminalHistoryIndex = -1;
+// Real interactive terminal with xterm.js
+function initRealTerminal() {
+  if (terminalInstance) return;
 
-function initTerminal() {
-  if (terminalBody.querySelector('.terminal-session')) return;
+  terminalBody.innerHTML = '';
 
-  terminalBody.innerHTML = `
-    <div class="terminal-session">
-      <div class="terminal-output"></div>
-      <div class="terminal-input-line">
-        <span class="terminal-prompt">${userHost || 'user'}@remote:${currentPath}$</span>
-        <input type="text" class="terminal-input" id="termInput" autofocus>
-      </div>
-    </div>
-  `;
-
-  const termInput = el('termInput');
-  const termOutput = terminalBody.querySelector('.terminal-output');
-
-  termInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      const cmd = termInput.value.trim();
-      if (!cmd) return;
-
-      // Add to history
-      terminalHistory.push(cmd);
-      terminalHistoryIndex = terminalHistory.length;
-
-      // Display command
-      const cmdLine = document.createElement('div');
-      cmdLine.className = 'terminal-line';
-      cmdLine.innerHTML = `<span class="terminal-prompt">${userHost || 'user'}@remote:${currentPath}$</span> ${cmd}`;
-      termOutput.appendChild(cmdLine);
-
-      // Execute command
-      try {
-        const result = await api('/api/exec', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ command: cmd, cwd: currentPath })
-        });
-
-        const outputLine = document.createElement('div');
-        outputLine.className = 'terminal-line';
-        outputLine.textContent = result.output || result.error || '';
-        termOutput.appendChild(outputLine);
-      } catch (err) {
-        const errorLine = document.createElement('div');
-        errorLine.className = 'terminal-line';
-        errorLine.style.color = '#f48771';
-        errorLine.textContent = err.message || 'Command failed';
-        termOutput.appendChild(errorLine);
-      }
-
-      termInput.value = '';
-      termOutput.scrollTop = termOutput.scrollHeight;
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (terminalHistoryIndex > 0) {
-        terminalHistoryIndex--;
-        termInput.value = terminalHistory[terminalHistoryIndex];
-      }
-    } else if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (terminalHistoryIndex < terminalHistory.length - 1) {
-        terminalHistoryIndex++;
-        termInput.value = terminalHistory[terminalHistoryIndex];
-      } else {
-        terminalHistoryIndex = terminalHistory.length;
-        termInput.value = '';
-      }
-    }
+  // Create xterm instance
+  terminalInstance = new Terminal({
+    cursorBlink: true,
+    fontSize: 13,
+    fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace',
+    theme: {
+      background: '#1e1e1e',
+      foreground: '#d4d4d4',
+      cursor: '#d4d4d4'
+    },
+    scrollback: 10000
   });
 
-  termInput.focus();
+  // Fit addon
+  terminalFitAddon = new FitAddon.FitAddon();
+  terminalInstance.loadAddon(terminalFitAddon);
+  terminalInstance.open(terminalBody);
+
+  setTimeout(() => {
+    terminalFitAddon.fit();
+  }, 100);
+
+  // Auto resize
+  const resizeObserver = new ResizeObserver(() => {
+    try {
+      terminalFitAddon.fit();
+      if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+        terminalSocket.send(JSON.stringify({
+          type: 'resize',
+          rows: terminalInstance.rows,
+          cols: terminalInstance.cols
+        }));
+      }
+    } catch (e) {}
+  });
+  resizeObserver.observe(terminalBody);
+
+  // WebSocket connection
+  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProto}//${window.location.host}?token=${token}`;
+
+  terminalSocket = new WebSocket(wsUrl);
+
+  terminalSocket.onopen = () => {
+    terminalInstance.writeln('\x1b[32m✓ Connected to remote server\x1b[0m\r\n');
+  };
+
+  terminalSocket.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'output') {
+        terminalInstance.write(msg.data);
+      } else if (msg.type === 'error') {
+        terminalInstance.writeln(`\r\n\x1b[31m✗ Error: ${msg.data}\x1b[0m\r\n`);
+      }
+    } catch (e) {}
+  };
+
+  terminalSocket.onerror = () => {
+    terminalInstance.writeln('\r\n\x1b[31m✗ Connection error\x1b[0m\r\n');
+  };
+
+  terminalSocket.onclose = () => {
+    terminalInstance.writeln('\r\n\x1b[33m○ Connection closed\x1b[0m\r\n');
+  };
+
+  // Terminal input → WebSocket
+  terminalInstance.onData((data) => {
+    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+      terminalSocket.send(JSON.stringify({ type: 'input', data }));
+    }
+  });
+}
+
+function destroyRealTerminal() {
+  if (terminalSocket) {
+    terminalSocket.close();
+    terminalSocket = null;
+  }
+  if (terminalInstance) {
+    terminalInstance.dispose();
+    terminalInstance = null;
+  }
+  terminalFitAddon = null;
 }
 
 // File/Folder creation

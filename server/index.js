@@ -5,10 +5,14 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import SftpClient from 'ssh2-sftp-client';
 import { Client as SSHClient } from 'ssh2';
+import { WebSocketServer } from 'ws';
+import http from 'http';
 import path from 'path';
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 * 1024 } }); // 1GB
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 1024 * 1024 * 1024 } });
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -19,7 +23,7 @@ app.use(morgan('dev'));
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // In-memory connection store
-const connections = new Map(); // token -> { sftp, ssh, createdAt, lastUsed, host, username, config }
+const connections = new Map(); // token -> { sftp, ssh, terminal, createdAt, lastUsed, host, username, config }
 
 const requireToken = (req, res, next) => {
   const token = req.headers['x-session-token'] || req.query.token || req.body.token;
@@ -50,7 +54,7 @@ app.post('/api/connect', async (req, res) => {
   try {
     await sftp.connect(config);
     const token = uuidv4();
-    connections.set(token, { sftp, ssh: null, createdAt: Date.now(), lastUsed: Date.now(), host, username, config });
+    connections.set(token, { sftp, ssh: null, terminal: null, createdAt: Date.now(), lastUsed: Date.now(), host, username, config });
     res.json({ token, host, username });
   } catch (err) {
     try { await sftp.end(); } catch {}
@@ -63,6 +67,8 @@ app.post('/api/disconnect', requireToken, async (req, res) => {
   const session = connections.get(token);
   try {
     await session.sftp.end();
+    if (session.ssh) session.ssh.end();
+    if (session.terminal) session.terminal.destroy();
   } catch {}
   connections.delete(token);
   res.json({ ok: true });
@@ -136,7 +142,6 @@ app.post('/api/delete', requireToken, async (req, res) => {
   }
 });
 
-// Read small text files (<=2MB) as UTF-8
 app.get('/api/read', requireToken, async (req, res) => {
   const p = req.query.path;
   if (!p) return res.status(400).json({ error: 'path is required' });
@@ -159,7 +164,6 @@ app.get('/api/read', requireToken, async (req, res) => {
   }
 });
 
-// Write text content (UTF-8)
 app.post('/api/write', requireToken, async (req, res) => {
   const { path: p, content = '' } = req.body || {};
   if (!p) return res.status(400).json({ error: 'path is required' });
@@ -171,7 +175,6 @@ app.post('/api/write', requireToken, async (req, res) => {
   }
 });
 
-// Create a new (empty or with content) file
 app.post('/api/touch', requireToken, async (req, res) => {
   const { path: p, content = '' } = req.body || {};
   if (!p) return res.status(400).json({ error: 'path is required' });
@@ -208,71 +211,94 @@ app.post('/api/upload', requireToken, upload.single('file'), async (req, res) =>
   }
 });
 
-// Execute command
-app.post('/api/exec', requireToken, async (req, res) => {
-  const { command, cwd = '/' } = req.body || {};
-  if (!command) return res.status(400).json({ error: 'command is required' });
-
-  const token = req.sessionToken;
-  const session = connections.get(token);
-
-  try {
-    // Create SSH connection if not exists
-    if (!session.ssh) {
-      session.ssh = new SSHClient();
-      await new Promise((resolve, reject) => {
-        session.ssh.on('ready', resolve);
-        session.ssh.on('error', reject);
-        session.ssh.connect(session.config);
-      });
-    }
-
-    // Execute command
-    const fullCommand = `cd ${cwd} && ${command}`;
-    const result = await new Promise((resolve, reject) => {
-      session.ssh.exec(fullCommand, (err, stream) => {
-        if (err) return reject(err);
-
-        let stdout = '';
-        let stderr = '';
-
-        stream.on('close', (code) => {
-          resolve({ output: stdout || stderr, code });
-        });
-
-        stream.on('data', (data) => {
-          stdout += data.toString();
-        });
-
-        stream.stderr.on('data', (data) => {
-          stderr += data.toString();
-        });
-      });
-    });
-
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: 'Execution failed', details: String(err?.message || err) });
-  }
-});
-
-// Health + cleanup
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, connections: connections.size });
 });
 
-// Cleanup idle sessions every 5 minutes
+// WebSocket for interactive terminal
+wss.on('connection', (ws, req) => {
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
+
+  if (!token || !connections.has(token)) {
+    ws.close(1008, 'Unauthorized');
+    return;
+  }
+
+  const session = connections.get(token);
+  session.lastUsed = Date.now();
+
+  // Create SSH shell
+  if (!session.ssh) {
+    session.ssh = new SSHClient();
+    session.ssh.on('error', (err) => {
+      ws.send(JSON.stringify({ type: 'error', data: err.message }));
+    });
+  }
+
+  session.ssh.on('ready', () => {
+    session.ssh.shell({ term: 'xterm-256color' }, (err, stream) => {
+      if (err) {
+        ws.send(JSON.stringify({ type: 'error', data: err.message }));
+        return;
+      }
+
+      session.terminal = stream;
+
+      // Terminal output → WebSocket
+      stream.on('data', (data) => {
+        ws.send(JSON.stringify({ type: 'output', data: data.toString('utf-8') }));
+      });
+
+      stream.stderr.on('data', (data) => {
+        ws.send(JSON.stringify({ type: 'output', data: data.toString('utf-8') }));
+      });
+
+      stream.on('close', () => {
+        ws.close();
+      });
+
+      // WebSocket input → Terminal
+      ws.on('message', (msg) => {
+        try {
+          const parsed = JSON.parse(msg.toString());
+          if (parsed.type === 'input') {
+            stream.write(parsed.data);
+          } else if (parsed.type === 'resize') {
+            stream.setWindow(parsed.rows, parsed.cols, parsed.height, parsed.width);
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      });
+
+      ws.on('close', () => {
+        stream.end();
+      });
+    });
+  });
+
+  if (!session.ssh.connected) {
+    session.ssh.connect(session.config);
+  }
+});
+
+// Cleanup idle sessions
 setInterval(() => {
   const now = Date.now();
   for (const [token, session] of connections.entries()) {
-    if (now - session.lastUsed > 15 * 60 * 1000) { // 15 minutes idle
-      session.sftp.end().catch(() => {});
+    if (now - session.lastUsed > 15 * 60 * 1000) {
+      try {
+        session.sftp.end().catch(() => {});
+        if (session.ssh) session.ssh.end();
+        if (session.terminal) session.terminal.destroy();
+      } catch {}
       connections.delete(token);
     }
   }
 }, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Remote Finder server running on http://localhost:${PORT}`);
 });

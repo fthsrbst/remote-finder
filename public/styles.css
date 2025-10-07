@@ -87,10 +87,7 @@ header {
   font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.3px;
-  background: linear-gradient(135deg, var(--accent) 0%, #5856d6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text);
 }
 
 .header-actions {

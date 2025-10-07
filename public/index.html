@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body data-connected="false">
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
+
     <!-- Header -->
     <header>
       <div class="brand">Remote Finder</div>
@@ -39,8 +44,18 @@
         </section>
 
         <section class="sidebar-section">
-          <div class="section-title">Saved Connections</div>
-          <div id="profiles" class="sidebar-list"></div>
+          <div class="section-title">Tools</div>
+          <div class="sidebar-list">
+            <div class="sidebar-item" id="terminalToggle">
+              <span class="sidebar-item-name">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                  <polyline points="4 17 10 11 4 5"></polyline>
+                  <line x1="12" y1="19" x2="20" y2="19"></line>
+                </svg>
+                Terminal
+              </span>
+            </div>
+          </div>
         </section>
       </aside>
 
@@ -62,6 +77,26 @@
             <div class="breadcrumbs" id="breadcrumbs">/</div>
           </div>
           <div class="toolbar-right">
+            <div class="view-toggle">
+              <button id="listViewBtn" class="icon-btn active" title="List view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </button>
+              <button id="gridViewBtn" class="icon-btn" title="Grid view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </button>
+            </div>
             <button id="refreshBtn" class="toolbar-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <polyline points="23 4 23 10 17 10"></polyline>
@@ -89,13 +124,27 @@
         </div>
 
         <!-- File List -->
-        <div class="file-list" id="fileList">
-          <div class="file-list-header">
-            <div class="col-name">Name</div>
-            <div class="col-size">Size</div>
-            <div class="col-modified">Modified</div>
+        <div class="file-list-container" id="fileListContainer">
+          <div class="file-list" id="fileList">
+            <div class="file-list-header">
+              <div class="col-name">Name</div>
+              <div class="col-size">Size</div>
+              <div class="col-modified">Modified</div>
+            </div>
+            <div class="file-list-body" id="fileListBody"></div>
           </div>
-          <div class="file-list-body" id="fileListBody"></div>
+
+          <!-- Grid View -->
+          <div class="file-grid hidden" id="fileGrid"></div>
+        </div>
+
+        <!-- Terminal Panel -->
+        <div class="terminal-panel hidden" id="terminalPanel">
+          <div class="terminal-header">
+            <span class="terminal-title">Terminal</span>
+            <button class="close-btn" id="closeTerminal">✕</button>
+          </div>
+          <div class="terminal-body" id="terminalBody"></div>
         </div>
 
         <!-- Empty State -->

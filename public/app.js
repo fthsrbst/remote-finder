@@ -10,6 +10,8 @@ let profiles = [];
 let favorites = {};
 let selectedItem = null;
 let contextItem = null;
+let currentView = 'list'; // 'list' or 'grid'
+let terminalOpen = false;
 
 // Elements
 const statusEl = el('status');
@@ -31,6 +33,14 @@ const forwardBtn = el('forwardBtn');
 const favAddBtn = el('favAddBtn');
 const emptyState = el('emptyState');
 const fileList = el('fileList');
+const fileGrid = el('fileGrid');
+const listViewBtn = el('listViewBtn');
+const gridViewBtn = el('gridViewBtn');
+const terminalToggle = el('terminalToggle');
+const terminalPanel = el('terminalPanel');
+const terminalBody = el('terminalBody');
+const closeTerminal = el('closeTerminal');
+const mainContent = document.querySelector('.main-content');
 
 // Modals
 const connectionModal = el('connectionModal');
@@ -112,50 +122,115 @@ async function list(pathStr) {
   renderCrumbs(pathStr);
   const data = await api(`/api/list?path=${encodeURIComponent(pathStr)}`);
   fileListBody.innerHTML = '';
+  fileGrid.innerHTML = '';
 
   for (const item of data.items) {
-    const row = document.createElement('div');
-    row.className = 'file-item';
-    row.dataset.path = item.path;
-    row.dataset.type = item.type;
-    row.dataset.name = item.name;
-
-    // Name column
-    const nameDiv = document.createElement('div');
-    nameDiv.className = 'file-item-name';
-    const icon = document.createElement('div');
-    icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
-    icon.textContent = item.type === 'dir' ? '📁' : '📄';
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = item.name;
-    nameDiv.appendChild(icon);
-    nameDiv.appendChild(nameSpan);
-
-    // Size column
-    const sizeDiv = document.createElement('div');
-    sizeDiv.className = 'file-size';
-    sizeDiv.textContent = item.type === 'dir' ? '—' : fmtBytes(item.size);
-
-    // Modified column
-    const modDiv = document.createElement('div');
-    modDiv.className = 'file-modified';
-    modDiv.textContent = fmtDate(item.modifyTime);
-
-    row.append(nameDiv, sizeDiv, modDiv);
-
-    // Events
-    row.addEventListener('click', () => selectItem(row));
-    row.addEventListener('dblclick', () => {
-      if (item.type === 'dir') {
-        changeDir(item.path);
-      } else {
-        openEditor(item.path);
-      }
-    });
-    row.addEventListener('contextmenu', (e) => showContextMenu(e, row));
-
-    fileListBody.appendChild(row);
+    if (currentView === 'list') {
+      createListItem(item);
+    } else {
+      createGridItem(item);
+    }
   }
+}
+
+function createListItem(item) {
+  const row = document.createElement('div');
+  row.className = 'file-item';
+  row.dataset.path = item.path;
+  row.dataset.type = item.type;
+  row.dataset.name = item.name;
+
+  // Name column
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'file-item-name';
+  const icon = document.createElement('div');
+  icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
+
+  // Add file extension for styling
+  if (item.type !== 'dir') {
+    const ext = item.name.split('.').pop().toLowerCase();
+    icon.setAttribute('data-ext', ext);
+  }
+
+  icon.textContent = item.type === 'dir' ? '📁' : '📄';
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = item.name;
+  nameDiv.appendChild(icon);
+  nameDiv.appendChild(nameSpan);
+
+  // Size column
+  const sizeDiv = document.createElement('div');
+  sizeDiv.className = 'file-size';
+  sizeDiv.textContent = item.type === 'dir' ? '—' : fmtBytes(item.size);
+
+  // Modified column
+  const modDiv = document.createElement('div');
+  modDiv.className = 'file-modified';
+  modDiv.textContent = fmtDate(item.modifyTime);
+
+  row.append(nameDiv, sizeDiv, modDiv);
+
+  // Events
+  row.addEventListener('click', () => selectItem(row));
+  row.addEventListener('dblclick', () => {
+    if (item.type === 'dir') {
+      changeDir(item.path);
+    } else {
+      openEditor(item.path);
+    }
+  });
+  row.addEventListener('contextmenu', (e) => showContextMenu(e, row));
+
+  fileListBody.appendChild(row);
+}
+
+function createGridItem(item) {
+  const gridItem = document.createElement('div');
+  gridItem.className = 'file-grid-item';
+  gridItem.dataset.path = item.path;
+  gridItem.dataset.type = item.type;
+  gridItem.dataset.name = item.name;
+
+  const icon = document.createElement('div');
+  icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
+
+  // Add file extension for styling
+  if (item.type !== 'dir') {
+    const ext = item.name.split('.').pop().toLowerCase();
+    icon.setAttribute('data-ext', ext);
+  }
+
+  icon.textContent = item.type === 'dir' ? '📁' : '📄';
+
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'file-grid-item-name';
+  nameDiv.textContent = item.name;
+
+  gridItem.appendChild(icon);
+  gridItem.appendChild(nameDiv);
+
+  // Events
+  gridItem.addEventListener('click', () => selectGridItem(gridItem));
+  gridItem.addEventListener('dblclick', () => {
+    if (item.type === 'dir') {
+      changeDir(item.path);
+    } else {
+      openEditor(item.path);
+    }
+  });
+  gridItem.addEventListener('contextmenu', (e) => showContextMenu(e, gridItem));
+
+  fileGrid.appendChild(gridItem);
+}
+
+function selectGridItem(gridItem) {
+  document.querySelectorAll('.file-grid-item').forEach(r => r.classList.remove('selected'));
+  gridItem.classList.add('selected');
+  selectedItem = {
+    path: gridItem.dataset.path,
+    type: gridItem.dataset.type,
+    name: gridItem.dataset.name
+  };
 }
 
 function selectItem(row) {
@@ -436,6 +511,122 @@ forwardBtn.addEventListener('click', async () => {
 
 refreshBtn.addEventListener('click', () => list(currentPath));
 
+// View toggle
+listViewBtn.addEventListener('click', () => {
+  currentView = 'list';
+  fileList.classList.remove('hidden');
+  fileGrid.classList.add('hidden');
+  listViewBtn.classList.add('active');
+  gridViewBtn.classList.remove('active');
+  list(currentPath);
+});
+
+gridViewBtn.addEventListener('click', () => {
+  currentView = 'grid';
+  fileList.classList.add('hidden');
+  fileGrid.classList.remove('hidden');
+  gridViewBtn.classList.add('active');
+  listViewBtn.classList.remove('active');
+  list(currentPath);
+});
+
+// Terminal toggle
+terminalToggle.addEventListener('click', () => {
+  terminalOpen = !terminalOpen;
+  if (terminalOpen) {
+    terminalPanel.classList.remove('hidden');
+    mainContent.classList.add('terminal-open');
+    initTerminal();
+  } else {
+    terminalPanel.classList.add('hidden');
+    mainContent.classList.remove('terminal-open');
+  }
+});
+
+closeTerminal.addEventListener('click', () => {
+  terminalOpen = false;
+  terminalPanel.classList.add('hidden');
+  mainContent.classList.remove('terminal-open');
+});
+
+// Simple terminal implementation (basic version)
+let terminalHistory = [];
+let terminalHistoryIndex = -1;
+
+function initTerminal() {
+  if (terminalBody.querySelector('.terminal-session')) return;
+
+  terminalBody.innerHTML = `
+    <div class="terminal-session">
+      <div class="terminal-output"></div>
+      <div class="terminal-input-line">
+        <span class="terminal-prompt">${userHost || 'user'}@remote:${currentPath}$</span>
+        <input type="text" class="terminal-input" id="termInput" autofocus>
+      </div>
+    </div>
+  `;
+
+  const termInput = el('termInput');
+  const termOutput = terminalBody.querySelector('.terminal-output');
+
+  termInput.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const cmd = termInput.value.trim();
+      if (!cmd) return;
+
+      // Add to history
+      terminalHistory.push(cmd);
+      terminalHistoryIndex = terminalHistory.length;
+
+      // Display command
+      const cmdLine = document.createElement('div');
+      cmdLine.className = 'terminal-line';
+      cmdLine.innerHTML = `<span class="terminal-prompt">${userHost || 'user'}@remote:${currentPath}$</span> ${cmd}`;
+      termOutput.appendChild(cmdLine);
+
+      // Execute command
+      try {
+        const result = await api('/api/exec', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ command: cmd, cwd: currentPath })
+        });
+
+        const outputLine = document.createElement('div');
+        outputLine.className = 'terminal-line';
+        outputLine.textContent = result.output || result.error || '';
+        termOutput.appendChild(outputLine);
+      } catch (err) {
+        const errorLine = document.createElement('div');
+        errorLine.className = 'terminal-line';
+        errorLine.style.color = '#f48771';
+        errorLine.textContent = err.message || 'Command failed';
+        termOutput.appendChild(errorLine);
+      }
+
+      termInput.value = '';
+      termOutput.scrollTop = termOutput.scrollHeight;
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (terminalHistoryIndex > 0) {
+        terminalHistoryIndex--;
+        termInput.value = terminalHistory[terminalHistoryIndex];
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (terminalHistoryIndex < terminalHistory.length - 1) {
+        terminalHistoryIndex++;
+        termInput.value = terminalHistory[terminalHistoryIndex];
+      } else {
+        terminalHistoryIndex = terminalHistory.length;
+        termInput.value = '';
+      }
+    }
+  });
+
+  termInput.focus();
+}
+
 // File/Folder creation
 newFolderBtn.addEventListener('click', async () => {
   const name = prompt('Folder name:');
@@ -550,53 +741,7 @@ function renderFavorites() {
   }
 }
 
-// Profiles
-function loadProfiles() {
-  try {
-    profiles = JSON.parse(localStorage.getItem('rf_profiles') || '[]');
-  } catch {
-    profiles = [];
-  }
-}
-
-function renderProfiles() {
-  profilesEl.innerHTML = '';
-  if (!profiles.length) {
-    profilesEl.innerHTML = '<div class="sidebar-empty">No saved connections</div>';
-    return;
-  }
-  for (const p of profiles) {
-    const div = document.createElement('div');
-    div.className = 'sidebar-item';
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'sidebar-item-name';
-    nameSpan.textContent = p.name || `${p.username}@${p.host}`;
-    nameSpan.addEventListener('click', () => quickConnect(p.id));
-    const delBtn = document.createElement('span');
-    delBtn.className = 'sidebar-item-action';
-    delBtn.textContent = '✕';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      profiles = profiles.filter(x => x.id !== p.id);
-      localStorage.setItem('rf_profiles', JSON.stringify(profiles));
-      renderProfiles();
-    });
-    div.append(nameSpan, delBtn);
-    profilesEl.appendChild(div);
-  }
-}
-
-async function quickConnect(id) {
-  const p = profiles.find(x => x.id === id);
-  if (!p) return;
-  el('host').value = p.host;
-  el('port').value = p.port || 22;
-  el('username').value = p.username || '';
-  el('password').value = p.password || '';
-  el('privateKey').value = p.privateKey || '';
-  el('passphrase').value = p.passphrase || '';
-  openConnectionModal();
-}
+// Profiles - Simplified (removed, keeping only favorites)
 
 // Theme
 function applyTheme(t) {
@@ -629,8 +774,6 @@ document.addEventListener('keydown', (e) => {
 
 // Initial setup
 renderCrumbs('/');
-loadProfiles();
-renderProfiles();
 try {
   favorites = JSON.parse(localStorage.getItem('rf_favorites') || '{}');
 } catch {

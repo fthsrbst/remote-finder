@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import SftpClient from 'ssh2-sftp-client';
+import { Client as SSHClient } from 'ssh2';
 import path from 'path';
 
 const app = express();
@@ -18,7 +19,7 @@ app.use(morgan('dev'));
 app.use(express.static(path.join(process.cwd(), 'public')));
 
 // In-memory connection store
-const connections = new Map(); // token -> { sftp, createdAt, lastUsed }
+const connections = new Map(); // token -> { sftp, ssh, createdAt, lastUsed, host, username, config }
 
 const requireToken = (req, res, next) => {
   const token = req.headers['x-session-token'] || req.query.token || req.body.token;
@@ -37,18 +38,19 @@ app.post('/api/connect', async (req, res) => {
     return res.status(400).json({ error: 'host, username and password or privateKey are required' });
   }
   const sftp = new SftpClient();
+  const config = {
+    host,
+    port,
+    username,
+    password: password || undefined,
+    privateKey: privateKey ? Buffer.from(privateKey) : undefined,
+    passphrase: passphrase || undefined,
+    readyTimeout: 15000,
+  };
   try {
-    await sftp.connect({
-      host,
-      port,
-      username,
-      password: password || undefined,
-      privateKey: privateKey ? Buffer.from(privateKey) : undefined,
-      passphrase: passphrase || undefined,
-      readyTimeout: 15000,
-    });
+    await sftp.connect(config);
     const token = uuidv4();
-    connections.set(token, { sftp, createdAt: Date.now(), lastUsed: Date.now(), host, username });
+    connections.set(token, { sftp, ssh: null, createdAt: Date.now(), lastUsed: Date.now(), host, username, config });
     res.json({ token, host, username });
   } catch (err) {
     try { await sftp.end(); } catch {}
@@ -203,6 +205,54 @@ app.post('/api/upload', requireToken, upload.single('file'), async (req, res) =>
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Upload failed', details: String(err?.message || err) });
+  }
+});
+
+// Execute command
+app.post('/api/exec', requireToken, async (req, res) => {
+  const { command, cwd = '/' } = req.body || {};
+  if (!command) return res.status(400).json({ error: 'command is required' });
+
+  const token = req.sessionToken;
+  const session = connections.get(token);
+
+  try {
+    // Create SSH connection if not exists
+    if (!session.ssh) {
+      session.ssh = new SSHClient();
+      await new Promise((resolve, reject) => {
+        session.ssh.on('ready', resolve);
+        session.ssh.on('error', reject);
+        session.ssh.connect(session.config);
+      });
+    }
+
+    // Execute command
+    const fullCommand = `cd ${cwd} && ${command}`;
+    const result = await new Promise((resolve, reject) => {
+      session.ssh.exec(fullCommand, (err, stream) => {
+        if (err) return reject(err);
+
+        let stdout = '';
+        let stderr = '';
+
+        stream.on('close', (code) => {
+          resolve({ output: stdout || stderr, code });
+        });
+
+        stream.on('data', (data) => {
+          stdout += data.toString();
+        });
+
+        stream.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+      });
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: 'Execution failed', details: String(err?.message || err) });
   }
 });
 

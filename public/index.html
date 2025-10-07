@@ -3,115 +3,178 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Remote Finder – Minimal SFTP Client</title>
+    <title>Remote Finder</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body data-connected="false">
+    <!-- Header -->
     <header>
       <div class="brand">Remote Finder</div>
       <div class="header-actions">
-        <button id="themeToggle" class="ghost" title="Toggle theme">Theme</button>
+        <button id="themeToggle" class="ghost-btn" title="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
         <div class="status" id="status">Not connected</div>
-        <button id="headerDisconnect" class="ghost">Disconnect</button>
+        <button id="connectModalBtn" class="ghost-btn">Connect</button>
+        <button id="headerDisconnect" class="ghost-btn">Disconnect</button>
       </div>
     </header>
 
-    <div class="layout">
-      <aside class="sidebar" id="sidebar">
-        <section class="connect" id="connectPanel">
-          <div class="group-title">Connect</div>
-          <div class="row">
-            <label>Host</label>
-            <input id="host" placeholder="example.com" />
-          </div>
-          <div class="row">
-            <label>Port</label>
-            <input id="port" type="number" value="22" />
-          </div>
-          <div class="row">
-            <label>Username</label>
-            <input id="username" placeholder="root" />
-          </div>
-          <div class="row">
-            <label>Password</label>
-            <input id="password" type="password" placeholder="••••••" />
-          </div>
-          <div class="row">
-            <label>Private Key</label>
-            <textarea id="privateKey" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"></textarea>
-          </div>
-          <div class="row">
-            <label>Passphrase</label>
-            <input id="passphrase" type="password" placeholder="Optional" />
-          </div>
-          <div class="row">
-            <button id="connectBtn">Connect</button>
-            <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
-          </div>
+    <div class="container">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <section class="sidebar-section">
+          <div class="section-title">Favorites</div>
+          <div id="favorites" class="sidebar-list"></div>
         </section>
 
-        <section>
-          <div class="group-title">Saved Connections</div>
-          <div id="profiles" class="list list-profiles"></div>
-        </section>
-
-        <section>
-          <div class="group-title">Favorites</div>
-          <div id="favorites" class="list list-favorites"></div>
+        <section class="sidebar-section">
+          <div class="section-title">Saved Connections</div>
+          <div id="profiles" class="sidebar-list"></div>
         </section>
       </aside>
 
-      <main>
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Toolbar -->
         <div class="toolbar">
-          <div class="breadcrumbs" id="breadcrumbs"></div>
-          <div class="actions">
-            <button id="backBtn" title="Back">←</button>
-            <button id="forwardBtn" title="Forward">→</button>
-            <button id="upBtn" title="Up">↑ Up</button>
-            <button id="refreshBtn">Refresh</button>
-            <button id="newFolderBtn">New Folder</button>
-            <button id="newFileBtn">New File</button>
-            <button id="favAddBtn" title="Add to favorites">☆ Favorite</button>
-            <label class="upload">
+          <div class="toolbar-left">
+            <button id="backBtn" class="icon-btn" title="Back">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button id="forwardBtn" class="icon-btn" title="Forward">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+            <div class="breadcrumbs" id="breadcrumbs">/</div>
+          </div>
+          <div class="toolbar-right">
+            <button id="refreshBtn" class="toolbar-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+            <button id="newFolderBtn" class="toolbar-btn">New Folder</button>
+            <button id="newFileBtn" class="toolbar-btn">New File</button>
+            <button id="favAddBtn" class="toolbar-btn" title="Add to favorites">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </button>
+            <label class="upload-btn">
               <input type="file" id="fileInput" />
-              <span>Upload</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Upload
             </label>
           </div>
         </div>
 
-        <div class="table" id="fileTable">
-          <div class="table-head">
-            <div>Name</div>
-            <div>Size</div>
-            <div>Modified</div>
-            <div class="right">Actions</div>
+        <!-- File List -->
+        <div class="file-list" id="fileList">
+          <div class="file-list-header">
+            <div class="col-name">Name</div>
+            <div class="col-size">Size</div>
+            <div class="col-modified">Modified</div>
           </div>
-          <div class="table-body" id="fileTableBody"></div>
+          <div class="file-list-body" id="fileListBody"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+          <p>Connect to a server to browse files</p>
+          <button id="emptyConnectBtn" class="primary-btn">Connect to Server</button>
         </div>
       </main>
     </div>
 
-    <div id="modal" class="modal hidden">
-      <div class="modal-backdrop" id="modalBackdrop"></div>
+    <!-- Connection Modal -->
+    <div id="connectionModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
       <div class="modal-dialog">
-        <div class="modal-head">
-          <div class="modal-title" id="modalTitle">File</div>
-          <button id="modalClose" class="ghost">Close</button>
+        <div class="modal-header">
+          <h3>Connect to Server</h3>
+          <button class="close-btn" id="closeConnectionModal">✕</button>
         </div>
         <div class="modal-body">
-          <textarea id="editor" spellcheck="false"></textarea>
-          <div class="modal-actions">
-            <button id="saveBtn">Save</button>
+          <div class="form-row">
+            <label>Host</label>
+            <input id="host" type="text" placeholder="example.com" />
           </div>
-          <div class="hint muted">Note: Files over 2MB or binary cannot be edited.</div>
+          <div class="form-row">
+            <label>Port</label>
+            <input id="port" type="number" value="22" />
+          </div>
+          <div class="form-row">
+            <label>Username</label>
+            <input id="username" type="text" placeholder="root" />
+          </div>
+          <div class="form-row">
+            <label>Password</label>
+            <input id="password" type="password" placeholder="••••••" />
+          </div>
+          <div class="form-row">
+            <label>Private Key</label>
+            <textarea id="privateKey" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+          </div>
+          <div class="form-row">
+            <label>Passphrase</label>
+            <input id="passphrase" type="password" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelConnectBtn" class="ghost-btn">Cancel</button>
+          <button id="connectBtn" class="primary-btn">Connect</button>
         </div>
       </div>
     </div>
 
-    <footer>
-      <span>Minimal web SFTP client</span>
-    </footer>
+    <!-- Editor Modal -->
+    <div id="editorModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-large">
+        <div class="modal-header">
+          <h3 id="editorTitle">File Editor</h3>
+          <button class="close-btn" id="closeEditorModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div class="hint">Files over 2MB or binary files cannot be edited.</div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelEditBtn" class="ghost-btn">Cancel</button>
+          <button id="saveBtn" class="primary-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu hidden">
+      <div class="context-item" id="ctxOpen">Open/Edit</div>
+      <div class="context-item" id="ctxDownload">Download</div>
+      <div class="context-divider"></div>
+      <div class="context-item" id="ctxRename">Rename</div>
+      <div class="context-item" id="ctxDelete">Delete</div>
+    </div>
 
     <script src="/app.js" type="module"></script>
   </body>
-  </html>
+</html>

@@ -1,121 +1,221 @@
 # Remote Finder
 
-Modern ve minimal bir web tabanlı SFTP istemcisi. SSH/SFTP bağlantıları üzerinden dosya yönetimi yapmak için kullanıcı dostu bir arayüz sunar.
+A modern and minimal web-based SFTP client. Provides a user-friendly interface for file management over SSH/SFTP connections.
 
-## 🚀 Özellikler
+![Remote Finder](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-ISC-green.svg)
+![Node](https://img.shields.io/badge/node-%3E%3D16.x-brightgreen.svg)
 
-- 🔐 **Güvenli Bağlantı**: Şifre veya SSH private key ile bağlantı desteği
-- 📁 **Dosya Yönetimi**: Dizin gezinme, dosya/klasör oluşturma, silme, yeniden adlandırma
-- 📝 **Metin Editörü**: 2MB'a kadar dosyaları doğrudan tarayıcıda düzenleme
-- ⬆️⬇️ **Dosya Transferi**: Dosya yükleme ve indirme desteği (1GB'a kadar)
-- ⭐ **Favoriler**: Sık kullanılan dizinleri kaydetme
-- 💾 **Bağlantı Profilleri**: Bağlantı bilgilerini kaydetme ve yönetme
-- 🎨 **Tema Desteği**: Açık/koyu tema seçeneği
-- 🧭 **Gelişmiş Navigasyon**: Breadcrumb navigasyonu, ileri/geri gezinme
-- ⚡ **Hızlı ve Hafif**: Minimal bağımlılıklarla optimize edilmiş performans
+## ✨ Features
 
-## 📋 Gereksinimler
+### Core Features
+- 🔐 **Secure Connection**: Support for password or SSH private key authentication
+- 📁 **File Management**: Browse directories, create/delete/rename files and folders
+- 📝 **Text Editor**: Edit files up to 2MB directly in the browser
+- ⬆️⬇️ **File Transfer**: Upload and download files (up to 1GB)
+- 🗂️ **Multi-Select**: Select multiple files with Ctrl/Cmd + Click or Shift + Click
+- 🗑️ **Bulk Delete**: Delete multiple selected files at once
 
-- Node.js 16.x veya üzeri
-- npm veya yarn
+### Advanced Features
+- 🖥️ **Multiple Terminals**: Open multiple SSH terminals with tab support
+- 💾 **Saved Connections**: Save and manage connection profiles
+- 📜 **Server History**: Automatically track your last 10 connections
+- ⭐ **Favorites**: Quick access to frequently used directories
+- 🎨 **Theme Support**: Auto-detect system theme (light/dark mode)
+- 🔍 **Inline Search**: Real-time file filtering with Ctrl/Cmd + K shortcut
+- 📐 **Collapsible Sidebar**: Icon-only mode for more screen space
 
-## 🛠️ Kurulum
+### SFTP Tools
+- 📊 **Disk Usage**: Analyze top 20 largest files/folders
+- 🔍 **Find Duplicates**: MD5-based duplicate file detection
+- 📦 **Compress/Extract**: Support for tar.gz, tgz, tar, zip, tar.bz2 formats
+- ⚙️ **Properties**: View detailed file/folder information
+- 🔐 **Permissions**: Change file permissions (chmod)
+
+### UI/UX
+- 🧭 **Advanced Navigation**: Breadcrumb navigation, forward/back history
+- 📱 **Mobile Responsive**: Touch-friendly interface
+- ⚡ **Optimized Performance**: Minimal dependencies, fast rendering
+- 🎯 **User-Friendly**: No alerts/confirms, custom modal dialogs
+
+## 📋 Requirements
+
+- Node.js 16.x or higher
+- npm or yarn
+
+## 🛠️ Installation
 
 ```bash
-# Projeyi klonlayın
+# Clone the repository
 git clone https://github.com/fthsrbst/remote-finder.git
 cd remote-finder
 
-# Bağımlılıkları yükleyin
+# Install dependencies
 npm install
 
-# Sunucuyu başlatın
+# Start the server
 npm start
 ```
 
-Sunucu varsayılan olarak `http://localhost:3000` adresinde çalışacaktır.
+The server will run at `http://localhost:3000` by default.
 
-## 📖 Kullanım
+## 📖 Usage
 
-1. Tarayıcınızda `http://localhost:3000` adresine gidin
-2. Sol panelden bağlantı bilgilerinizi girin:
-   - **Host**: SSH sunucu adresi
-   - **Port**: SSH port numarası (varsayılan: 22)
-   - **Username**: Kullanıcı adı
-   - **Password** veya **Private Key**: Kimlik doğrulama yönteminizi seçin
-3. **Connect** butonuna tıklayın
-4. Bağlantı başarılı olduktan sonra dosya sisteminde gezinmeye başlayabilirsiniz
+### Connecting to a Server
 
-### Bağlantı Profilleri
+1. Open `http://localhost:3000` in your browser
+2. Click "Connect" button
+3. Enter your connection details:
+   - **Host**: SSH server address
+   - **Port**: SSH port number (default: 22)
+   - **Username**: Your username
+   - **Password** or **Private Key**: Choose your authentication method
+4. Click **Connect**
+5. Optionally save the connection for quick access later
 
-Sık kullanılan bağlantılarınızı kaydedebilir ve tek tıklama ile bağlanabilirsiniz. Profiller tarayıcınızın localStorage'ında saklanır.
+### Test Connection
 
-### Favoriler
+Use the free test SFTP server:
+- **Host**: test.rebex.net
+- **Port**: 22
+- **Username**: demo
+- **Password**: password
 
-Sık eriştiğiniz dizinleri favorilerinize ekleyerek hızlı erişim sağlayabilirsiniz.
+### File Operations
 
-## 🔧 Teknolojiler
+- **Single Click**: Select file
+- **Double Click**: Open file or enter directory
+- **Ctrl/Cmd + Click**: Multi-select
+- **Shift + Click**: Range select
+- **Right Click**: Context menu (rename, delete, properties, permissions)
+- **Drag & Drop**: Upload multiple files
+
+### Terminal
+
+- Click "Terminal" in sidebar to open
+- Click "+" button to open multiple terminals
+- Switch between terminals using tabs
+- Close terminals with "x" button
+
+### Quick Search
+
+- Click search box or press **Ctrl/Cmd + K**
+- Type to filter files in real-time
+- No modal popups, inline filtering
+
+### Saved Connections
+
+Frequently used connections are saved in browser localStorage. Click on a saved connection to auto-fill the connection form.
+
+### Favorites
+
+Add frequently accessed directories to favorites for quick navigation.
+
+## 🔧 Technologies
 
 ### Backend
-- **Express**: Web framework
-- **ssh2-sftp-client**: SFTP bağlantı yönetimi
-- **multer**: Dosya yükleme işlemleri
-- **uuid**: Session token oluşturma
+- **Express 5.x**: Web framework
+- **ssh2-sftp-client**: SFTP connection management
+- **ssh2**: SSH shell for terminal support
+- **ws**: WebSocket for interactive terminals
+- **multer**: File upload handling
+- **uuid**: Session token generation
 
 ### Frontend
-- **Vanilla JavaScript**: Sade ve hızlı
-- **CSS3**: Modern ve responsive tasarım
-- **LocalStorage**: Profil ve favori yönetimi
+- **Vanilla JavaScript**: Pure, no frameworks
+- **CSS3**: Modern responsive design with Finder-style interface
+- **xterm.js**: Terminal emulator
+- **LocalStorage**: Profile and favorites management
 
 ## 🌍 API Endpoints
 
-| Endpoint | Method | Açıklama |
-|----------|--------|----------|
-| `/api/connect` | POST | SFTP bağlantısı oluşturma |
-| `/api/disconnect` | POST | Bağlantıyı sonlandırma |
-| `/api/list` | GET | Dizin içeriğini listeleme |
-| `/api/stat` | GET | Dosya/dizin bilgisi alma |
-| `/api/mkdir` | POST | Yeni dizin oluşturma |
-| `/api/rename` | POST | Dosya/dizin yeniden adlandırma |
-| `/api/delete` | POST | Dosya/dizin silme |
-| `/api/read` | GET | Dosya içeriğini okuma (max 2MB) |
-| `/api/write` | POST | Dosyaya yazma |
-| `/api/touch` | POST | Yeni dosya oluşturma |
-| `/api/download` | GET | Dosya indirme |
-| `/api/upload` | POST | Dosya yükleme (max 1GB) |
-| `/api/health` | GET | Sunucu durumu |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/connect` | POST | Create SFTP connection |
+| `/api/disconnect` | POST | Close connection |
+| `/api/list` | GET | List directory contents |
+| `/api/stat` | GET | Get file/directory info |
+| `/api/mkdir` | POST | Create new directory |
+| `/api/rename` | POST | Rename file/directory |
+| `/api/delete` | POST | Delete file/directory |
+| `/api/read` | GET | Read file contents (max 2MB) |
+| `/api/write` | POST | Write to file |
+| `/api/touch` | POST | Create new file |
+| `/api/download` | GET | Download file |
+| `/api/upload` | POST | Upload file (max 1GB) |
+| `/api/exec` | POST | Execute SSH command |
+| `/api/health` | GET | Server health check |
 
-## 🔒 Güvenlik
+## 🔒 Security
 
-- Bağlantı bilgileri yalnızca hafızada tutulur
-- Session token'lar UUID ile oluşturulur
-- 15 dakika işlem yapılmayan oturumlar otomatik sonlandırılır
-- Private key'ler sunucuda saklanmaz
+- Connection credentials are stored only in memory
+- Session tokens generated with UUID
+- Automatic session cleanup after 15 minutes of inactivity
+- Private keys are never stored on the server
+- Optional password storage in browser (encrypted)
 
-## 📝 Notlar
+## ⌨️ Keyboard Shortcuts
 
-- Metin editörü yalnızca UTF-8 formatındaki dosyaları destekler
-- Binary dosyalar düzenlenemez
-- Maksimum dosya yükleme boyutu: 1GB
-- Maksimum editörde düzenlenebilir dosya boyutu: 2MB
+- **Ctrl/Cmd + K**: Focus search box
+- **Escape**: Close any open modal
+- **Ctrl/Cmd + Click**: Multi-select files
+- **Shift + Click**: Range select files
 
-## 🤝 Katkıda Bulunma
+## 📝 Notes
 
-1. Bu projeyi fork edin
-2. Feature branch'i oluşturun (`git checkout -b feature/amazing-feature`)
-3. Değişikliklerinizi commit edin (`git commit -m 'feat: Add amazing feature'`)
-4. Branch'inizi push edin (`git push origin feature/amazing-feature`)
-5. Pull Request oluşturun
+- Text editor supports UTF-8 files only
+- Binary files cannot be edited (download only)
+- Maximum upload size: 1GB
+- Maximum editable file size: 2MB
+- Terminal scrollback: 1000 lines (optimized for performance)
 
-## 📄 Lisans
+## 🚀 Performance Optimizations
+
+- **State Management**: Single state object
+- **Element Caching**: All DOM elements cached
+- **Debounced Search**: 200ms debounce for search
+- **Throttled Resize**: 100ms throttle for terminal resize
+- **Canvas Renderer**: Terminal uses canvas for better performance
+- **Reduced Scrollback**: Optimized from 10,000 to 1,000 lines
+
+## 🤝 Contributing
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
 
 ISC
 
-## 👤 Yazar
+## 👤 Author
 
 **fthsrbst**
 - GitHub: [@fthsrbst](https://github.com/fthsrbst)
 
+## 🙏 Acknowledgments
+
+- Inspired by macOS Finder interface
+- Built with modern web technologies
+- Optimized for performance and user experience
+
 ---
 
-⭐ Bu projeyi beğendiyseniz yıldız vermeyi unutmayın!
+⭐ If you like this project, please give it a star!
+
+## 📸 Screenshots
+
+### Main Interface
+![Main Interface](docs/screenshot-main.png)
+
+### Multiple Terminals
+![Terminals](docs/screenshot-terminals.png)
+
+### Dark Mode
+![Dark Mode](docs/screenshot-dark.png)
+
+---
+
+**Made with ❤️ by fthsrbst**

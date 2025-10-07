@@ -1,4 +1,4 @@
-# sshGui
+# Remote Finder
 
 Modern ve minimal bir web tabanlı SFTP istemcisi. SSH/SFTP bağlantıları üzerinden dosya yönetimi yapmak için kullanıcı dostu bir arayüz sunar.
 
@@ -23,8 +23,8 @@ Modern ve minimal bir web tabanlı SFTP istemcisi. SSH/SFTP bağlantıları üze
 
 ```bash
 # Projeyi klonlayın
-git clone https://github.com/fthsrbst/sshGui.git
-cd sshGui
+git clone https://github.com/fthsrbst/remote-finder.git
+cd remote-finder
 
 # Bağımlılıkları yükleyin
 npm install

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Remote Finder – Minimal SFTP Client</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-connected="false">
+    <header>
+      <div class="brand">Remote Finder</div>
+      <div class="header-actions">
+        <button id="themeToggle" class="ghost" title="Toggle theme">Theme</button>
+        <div class="status" id="status">Not connected</div>
+        <button id="headerDisconnect" class="ghost">Disconnect</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="sidebar" id="sidebar">
+        <section class="connect" id="connectPanel">
+          <div class="group-title">Connect</div>
+          <div class="row">
+            <label>Host</label>
+            <input id="host" placeholder="example.com" />
+          </div>
+          <div class="row">
+            <label>Port</label>
+            <input id="port" type="number" value="22" />
+          </div>
+          <div class="row">
+            <label>Username</label>
+            <input id="username" placeholder="root" />
+          </div>
+          <div class="row">
+            <label>Password</label>
+            <input id="password" type="password" placeholder="••••••" />
+          </div>
+          <div class="row">
+            <label>Private Key</label>
+            <textarea id="privateKey" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----"></textarea>
+          </div>
+          <div class="row">
+            <label>Passphrase</label>
+            <input id="passphrase" type="password" placeholder="Optional" />
+          </div>
+          <div class="row">
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" class="ghost" disabled>Disconnect</button>
+          </div>
+        </section>
+
+        <section>
+          <div class="group-title">Saved Connections</div>
+          <div id="profiles" class="list list-profiles"></div>
+        </section>
+
+        <section>
+          <div class="group-title">Favorites</div>
+          <div id="favorites" class="list list-favorites"></div>
+        </section>
+      </aside>
+
+      <main>
+        <div class="toolbar">
+          <div class="breadcrumbs" id="breadcrumbs"></div>
+          <div class="actions">
+            <button id="backBtn" title="Back">←</button>
+            <button id="forwardBtn" title="Forward">→</button>
+            <button id="upBtn" title="Up">↑ Up</button>
+            <button id="refreshBtn">Refresh</button>
+            <button id="newFolderBtn">New Folder</button>
+            <button id="newFileBtn">New File</button>
+            <button id="favAddBtn" title="Add to favorites">☆ Favorite</button>
+            <label class="upload">
+              <input type="file" id="fileInput" />
+              <span>Upload</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="table" id="fileTable">
+          <div class="table-head">
+            <div>Name</div>
+            <div>Size</div>
+            <div>Modified</div>
+            <div class="right">Actions</div>
+          </div>
+          <div class="table-body" id="fileTableBody"></div>
+        </div>
+      </main>
+    </div>
+
+    <div id="modal" class="modal hidden">
+      <div class="modal-backdrop" id="modalBackdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-head">
+          <div class="modal-title" id="modalTitle">File</div>
+          <button id="modalClose" class="ghost">Close</button>
+        </div>
+        <div class="modal-body">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div class="modal-actions">
+            <button id="saveBtn">Save</button>
+          </div>
+          <div class="hint muted">Note: Files over 2MB or binary cannot be edited.</div>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <span>Minimal web SFTP client</span>
+    </footer>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+  </html>

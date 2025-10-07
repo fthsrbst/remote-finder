@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Remote Finder</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/new-features.css" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
@@ -24,8 +25,27 @@
           <line x1="3" y1="18" x2="21" y2="18"></line>
         </svg>
       </button>
+
+      <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="18" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="18" rx="1"></rect>
+        </svg>
+      </button>
+
       <div class="brand">Remote Finder</div>
+
+      <div class="header-info">
+        <span id="currentUser" class="header-user"></span>
+        <span id="currentDateTime" class="header-datetime"></span>
+      </div>
+
       <div class="header-actions">
+        <a href="https://github.com/fthsrbst" target="_blank" class="github-link" title="View on GitHub">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+        </a>
         <button id="themeToggle" class="ghost-btn" title="Toggle theme">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"></circle>
@@ -52,67 +72,59 @@
       <!-- Sidebar -->
       <aside class="sidebar" id="sidebar">
         <section class="sidebar-section">
-          <div class="section-title">Favorites</div>
+          <div class="section-title">
+            <span>Saved Connections</span>
+          </div>
+          <div id="savedConnections" class="sidebar-list"></div>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-title">
+            <span>Favorites</span>
+          </div>
           <div id="favorites" class="sidebar-list"></div>
         </section>
 
         <section class="sidebar-section">
-          <div class="section-title">Tools</div>
+          <div class="section-title">
+            <span>Tools</span>
+          </div>
           <div class="sidebar-list">
-            <div class="sidebar-item" id="terminalToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <polyline points="4 17 10 11 4 5"></polyline>
-                  <line x1="12" y1="19" x2="20" y2="19"></line>
-                </svg>
-                Terminal
-              </span>
+            <div class="sidebar-item" id="terminalToggle" title="Terminal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+              <span class="sidebar-item-name">Terminal</span>
             </div>
-            <div class="sidebar-item" id="quickSearchToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <path d="m21 21-4.35-4.35"></path>
-                </svg>
-                Quick Search
-              </span>
+            <div class="sidebar-item" id="serverHistoryToggle" title="Server History">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+              <span class="sidebar-item-name">Server History</span>
             </div>
-            <div class="sidebar-item" id="serverHistoryToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                  <polyline points="17 6 23 6 23 12"></polyline>
-                </svg>
-                Server History
-              </span>
+            <div class="sidebar-item" id="diskUsageToggle" title="Disk Usage">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+              <span class="sidebar-item-name">Disk Usage</span>
             </div>
-            <div class="sidebar-item" id="diskUsageToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                </svg>
-                Disk Usage
-              </span>
+            <div class="sidebar-item" id="findDuplicatesToggle" title="Find Duplicates">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="sidebar-item-name">Find Duplicates</span>
             </div>
-            <div class="sidebar-item" id="findDuplicatesToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                </svg>
-                Find Duplicates
-              </span>
-            </div>
-            <div class="sidebar-item" id="compressToggle">
-              <span class="sidebar-item-name">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
-                  <polyline points="16 16 12 12 8 16"></polyline>
-                  <line x1="12" y1="12" x2="12" y2="21"></line>
-                  <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
-                </svg>
-                Compress/Extract
-              </span>
+            <div class="sidebar-item" id="compressToggle" title="Compress/Extract">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 16 12 12 8 16"></polyline>
+                <line x1="12" y1="12" x2="12" y2="21"></line>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+              </svg>
+              <span class="sidebar-item-name">Compress</span>
             </div>
           </div>
         </section>
@@ -136,6 +148,7 @@
             <div class="breadcrumbs" id="breadcrumbs">/</div>
           </div>
           <div class="toolbar-right">
+            <input type="text" id="quickSearchInput" class="quick-search-input" placeholder="Search files... (Ctrl+K)" />
             <div class="view-toggle">
               <button id="listViewBtn" class="icon-btn active" title="List view">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -177,7 +190,7 @@
               </svg>
             </button>
             <label class="upload-btn">
-              <input type="file" id="fileInput" />
+              <input type="file" id="fileInput" multiple />
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                 <polyline points="17 8 12 3 7 8"></polyline>
@@ -206,8 +219,21 @@
         <!-- Terminal Panel -->
         <div class="terminal-panel hidden" id="terminalPanel">
           <div class="terminal-header">
-            <span class="terminal-title">Terminal</span>
-            <button class="close-btn" id="closeTerminal">✕</button>
+            <div class="terminal-tabs" id="terminalTabs"></div>
+            <div class="terminal-actions">
+              <button class="terminal-action-btn" id="newTerminalBtn" title="New Terminal">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <button class="terminal-action-btn" id="closeTerminal" title="Close Terminal Panel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="terminal-body" id="terminalBody"></div>
         </div>
@@ -288,6 +314,7 @@
       <div class="context-item" id="ctxRename">Rename</div>
       <div class="context-item" id="ctxDelete">Delete</div>
       <div class="context-item" id="ctxPermissions">Permissions</div>
+      <div class="context-item" id="ctxProperties">Properties</div>
     </div>
 
     <!-- Alert Modal -->
@@ -368,23 +395,6 @@
       </div>
     </div>
 
-    <!-- Quick Search Modal -->
-    <div id="quickSearchModal" class="modal hidden">
-      <div class="modal-backdrop"></div>
-      <div class="modal-dialog">
-        <div class="modal-header">
-          <h3>Quick Search</h3>
-          <button class="close-btn" id="closeQuickSearch">✕</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row">
-            <input type="text" id="searchInput" placeholder="Search files..." autofocus />
-          </div>
-          <div id="searchResults" class="search-results"></div>
-        </div>
-      </div>
-    </div>
-
     <!-- Server History Modal -->
     <div id="serverHistoryModal" class="modal hidden">
       <div class="modal-backdrop"></div>
@@ -395,6 +405,45 @@
         </div>
         <div class="modal-body">
           <div id="serverHistoryList" class="server-history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Properties Modal -->
+    <div id="propertiesModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Properties</h3>
+          <button class="close-btn" id="closeProperties">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="propertiesContent" class="properties-content"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="closePropertiesBtn" class="primary-btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permissions Modal -->
+    <div id="permissionsModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3>Change Permissions</h3>
+          <button class="close-btn" id="closePermissions">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label>Permissions (chmod):</label>
+            <input type="text" id="permissionsInput" placeholder="755" maxlength="3" />
+            <div class="hint">Examples: 755 (rwxr-xr-x), 644 (rw-r--r--)</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelPermissions" class="ghost-btn">Cancel</button>
+          <button id="confirmPermissions" class="primary-btn">Apply</button>
         </div>
       </div>
     </div>

@@ -1,0 +1,396 @@
+/* New Features Styles */
+
+/* Sidebar Toggle & Header Additions */
+.sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.sidebar-toggle:hover {
+  background: var(--hover);
+}
+
+.sidebar-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+header {
+  gap: 12px !important;
+}
+
+.header-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-left: auto;
+  margin-right: 16px;
+}
+
+.header-user {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.header-datetime {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+}
+
+.github-link:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+/* Collapsible Sidebar */
+.sidebar.collapsed {
+  width: 60px;
+  min-width: 60px;
+}
+
+.sidebar.collapsed .section-title span,
+.sidebar.collapsed .sidebar-item-name,
+.sidebar.collapsed .sidebar-empty {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding: 8px;
+}
+
+.sidebar.collapsed .sidebar-item svg {
+  margin-right: 0;
+}
+
+.sidebar.collapsed .sidebar-item-action {
+  display: none;
+}
+
+.container {
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body:not(.sidebar-collapsed) .container {
+  grid-template-columns: 200px 1fr;
+}
+
+body.sidebar-collapsed .container {
+  grid-template-columns: 60px 1fr;
+}
+
+/* Quick Search Inline */
+.quick-search-input {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+  transition: border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.quick-search-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.quick-search-input::placeholder {
+  color: var(--text-secondary);
+}
+
+/* Terminal Tabs */
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.terminal-tab:hover {
+  background: var(--hover);
+}
+
+.terminal-tab.active {
+  background: var(--panel);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.terminal-tab-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  opacity: 0.6;
+  transition: all var(--transition-fast);
+}
+
+.terminal-tab-close:hover {
+  opacity: 1;
+  background: var(--danger);
+  color: white;
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.terminal-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.terminal-action-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* Properties Modal */
+.properties-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.property-row {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.property-row:last-child {
+  border-bottom: none;
+}
+
+.property-label {
+  width: 120px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.property-value {
+  flex: 1;
+  color: var(--text);
+  word-break: break-all;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+
+/* Saved Connections */
+#savedConnections .sidebar-item {
+  position: relative;
+}
+
+#savedConnections .sidebar-item .sidebar-item-action {
+  opacity: 0;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+#savedConnections .sidebar-item:hover .sidebar-item-action {
+  opacity: 1;
+}
+
+#savedConnections .sidebar-item .sidebar-item-action:hover {
+  background: var(--danger);
+  color: white;
+}
+
+/* Enhanced Terminal Body */
+.terminal-body {
+  flex: 1;
+  overflow: hidden;
+  background: #0a0a0a;
+  position: relative;
+}
+
+[data-theme="dark"] .terminal-body {
+  background: #0a0a0a;
+}
+
+[data-theme="light"] .terminal-body {
+  background: #ffffff;
+}
+
+.terminal-container {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: none;
+}
+
+.terminal-container.active {
+  display: block;
+}
+
+/* Improved Scrolling for Terminal */
+.terminal-tabs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.terminal-tabs::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.terminal-tabs::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* Toolbar Button Styles */
+.toolbar-btn,
+.icon-btn,
+.ghost-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.view-toggle {
+  flex-shrink: 0;
+}
+
+.upload-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .header-info {
+    display: none;
+  }
+
+  .quick-search-input {
+    width: 120px;
+    min-width: 120px;
+    max-width: 120px;
+  }
+
+  .sidebar-toggle {
+    display: none;
+  }
+
+  body.sidebar-collapsed .container {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar {
+    gap: 4px;
+  }
+
+  .toolbar-left,
+  .toolbar-right {
+    gap: 4px;
+  }
+
+  .toolbar-btn {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .quick-search-input {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+  }
+
+  .github-link {
+    width: 28px;
+    height: 28px;
+  }
+
+  .github-link svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .toolbar-btn {
+    padding: 5px 6px;
+    font-size: 10px;
+  }
+
+  .icon-btn {
+    width: 28px;
+    height: 28px;
+  }
+}

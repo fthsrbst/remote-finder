@@ -1,174 +1,150 @@
+// Optimized Remote Finder App
 const el = (id) => document.getElementById(id);
 
-// State
-let token = null;
-let currentPath = '/';
-let userHost = null;
-let backStack = [];
-let fwdStack = [];
-let savedConnections = [];
-let serverHistory = [];
-let favorites = {};
-let selectedItems = new Set(); // Multi-select support
-let contextItem = null;
-let currentView = 'list';
-let terminalOpen = false;
+// App State
+const state = {
+  token: null,
+  currentPath: '/',
+  userHost: null,
+  backStack: [],
+  fwdStack: [],
+  savedConnections: [],
+  serverHistory: [],
+  favorites: {},
+  selectedItems: new Set(),
+  contextItem: null,
+  currentView: 'list',
+  terminals: [],
+  activeTerminalId: null,
+  allFileItems: []
+};
 
-// Elements
-const statusEl = el('status');
-const connectBtn = el('connectBtn');
-const connectModalBtn = el('connectModalBtn');
-const emptyConnectBtn = el('emptyConnectBtn');
-const headerDisconnect = el('headerDisconnect');
-const favoritesEl = el('favorites');
-const themeToggle = el('themeToggle');
-const refreshBtn = el('refreshBtn');
-const trashBtn = el('trashBtn');
-const newFolderBtn = el('newFolderBtn');
-const newFileBtn = el('newFileBtn');
-const fileInput = el('fileInput');
-const breadcrumbs = el('breadcrumbs');
-const fileListBody = el('fileListBody');
-const backBtn = el('backBtn');
-const forwardBtn = el('forwardBtn');
-const favAddBtn = el('favAddBtn');
-const emptyState = el('emptyState');
-const fileList = el('fileList');
-const fileGrid = el('fileGrid');
-const listViewBtn = el('listViewBtn');
-const gridViewBtn = el('gridViewBtn');
-const terminalToggle = el('terminalToggle');
-const terminalPanel = el('terminalPanel');
-const terminalBody = el('terminalBody');
-const closeTerminal = el('closeTerminal');
-const mainContent = document.querySelector('.main-content');
-const quickSearchToggle = el('quickSearchToggle');
-const serverHistoryToggle = el('serverHistoryToggle');
+// Elements Cache
+const elements = {
+  status: el('status'),
+  connectBtn: el('connectBtn'),
+  connectModalBtn: el('connectModalBtn'),
+  emptyConnectBtn: el('emptyConnectBtn'),
+  headerDisconnect: el('headerDisconnect'),
+  savedConnectionsEl: el('savedConnections'),
+  favoritesEl: el('favorites'),
+  themeToggle: el('themeToggle'),
+  refreshBtn: el('refreshBtn'),
+  trashBtn: el('trashBtn'),
+  newFolderBtn: el('newFolderBtn'),
+  newFileBtn: el('newFileBtn'),
+  fileInput: el('fileInput'),
+  breadcrumbs: el('breadcrumbs'),
+  fileListBody: el('fileListBody'),
+  backBtn: el('backBtn'),
+  forwardBtn: el('forwardBtn'),
+  favAddBtn: el('favAddBtn'),
+  emptyState: el('emptyState'),
+  fileList: el('fileList'),
+  fileGrid: el('fileGrid'),
+  listViewBtn: el('listViewBtn'),
+  gridViewBtn: el('gridViewBtn'),
+  terminalToggle: el('terminalToggle'),
+  terminalPanel: el('terminalPanel'),
+  terminalBody: el('terminalBody'),
+  terminalTabs: el('terminalTabs'),
+  closeTerminal: el('closeTerminal'),
+  newTerminalBtn: el('newTerminalBtn'),
+  mainContent: document.querySelector('.main-content'),
+  quickSearchInput: el('quickSearchInput'),
+  serverHistoryToggle: el('serverHistoryToggle'),
+  contextMenu: el('contextMenu'),
+  sidebarToggle: el('sidebarToggle'),
+  sidebar: el('sidebar'),
+  currentUser: el('currentUser'),
+  currentDateTime: el('currentDateTime')
+};
 
-// Modals
-const connectionModal = el('connectionModal');
-const closeConnectionModal = el('closeConnectionModal');
-const cancelConnectBtn = el('cancelConnectBtn');
-const editorModal = el('editorModal');
-const closeEditorModal = el('closeEditorModal');
-const cancelEditBtn = el('cancelEditBtn');
-const editorTitle = el('editorTitle');
-const editor = el('editor');
-const saveBtn = el('saveBtn');
-const quickSearchModal = el('quickSearchModal');
-const closeQuickSearch = el('closeQuickSearch');
-const searchInput = el('searchInput');
-const searchResults = el('searchResults');
-const serverHistoryModal = el('serverHistoryModal');
-const closeServerHistory = el('closeServerHistory');
-const serverHistoryList = el('serverHistoryList');
-const saveConnectionModal = el('saveConnectionModal');
-const closeSaveConnection = el('closeSaveConnection');
-const cancelSaveConnection = el('cancelSaveConnection');
-const confirmSaveConnection = el('confirmSaveConnection');
-const saveConnName = el('saveConnName');
-const saveConnCustomName = el('saveConnCustomName');
-
-// Context Menu
-const contextMenu = el('contextMenu');
-const ctxOpen = el('ctxOpen');
-const ctxDownload = el('ctxDownload');
-const ctxRename = el('ctxRename');
-const ctxDelete = el('ctxDelete');
-
-// Custom notification system (temaya uygun)
+// Utility: Show notification
 function showNotification(message, type = 'info') {
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
   notification.textContent = message;
   document.body.appendChild(notification);
-
   setTimeout(() => notification.classList.add('show'), 10);
-
   setTimeout(() => {
     notification.classList.remove('show');
     setTimeout(() => notification.remove(), 300);
   }, 3000);
 }
 
-// Custom confirm dialog (temaya uygun)
+// Utility: Custom confirm
 function customConfirm(message, title = 'Confirm') {
   return new Promise((resolve) => {
-    const confirmModal = el('confirmModal');
-    const confirmTitle = el('confirmTitle');
-    const confirmMessage = el('confirmMessage');
-    const okConfirm = el('okConfirm');
-    const cancelConfirm = el('cancelConfirm');
-    const closeConfirm = el('closeConfirm');
+    const modal = el('confirmModal');
+    const titleEl = el('confirmTitle');
+    const messageEl = el('confirmMessage');
+    const okBtn = el('okConfirm');
+    const cancelBtn = el('cancelConfirm');
+    const closeBtn = el('closeConfirm');
 
-    confirmTitle.textContent = title;
-    confirmMessage.textContent = message;
-    confirmModal.classList.remove('hidden');
+    titleEl.textContent = title;
+    messageEl.textContent = message;
+    modal.classList.remove('hidden');
 
     const cleanup = (result) => {
-      confirmModal.classList.add('hidden');
-      okConfirm.onclick = null;
-      cancelConfirm.onclick = null;
-      closeConfirm.onclick = null;
+      modal.classList.add('hidden');
+      okBtn.onclick = null;
+      cancelBtn.onclick = null;
+      closeBtn.onclick = null;
       resolve(result);
     };
 
-    okConfirm.onclick = () => cleanup(true);
-    cancelConfirm.onclick = () => cleanup(false);
-    closeConfirm.onclick = () => cleanup(false);
+    okBtn.onclick = () => cleanup(true);
+    cancelBtn.onclick = () => cleanup(false);
+    closeBtn.onclick = () => cleanup(false);
   });
 }
 
-// Custom prompt dialog (temaya uygun)
+// Utility: Custom prompt
 function customPrompt(message, defaultValue = '', title = 'Input') {
   return new Promise((resolve) => {
-    const promptModal = el('promptModal');
-    const promptTitle = el('promptTitle');
-    const promptLabel = el('promptLabel');
-    const promptInput = el('promptInput');
-    const confirmPrompt = el('confirmPrompt');
-    const cancelPrompt = el('cancelPrompt');
-    const closePrompt = el('closePrompt');
+    const modal = el('promptModal');
+    const titleEl = el('promptTitle');
+    const labelEl = el('promptLabel');
+    const input = el('promptInput');
+    const confirmBtn = el('confirmPrompt');
+    const cancelBtn = el('cancelPrompt');
+    const closeBtn = el('closePrompt');
 
-    promptTitle.textContent = title;
-    promptLabel.textContent = message;
-    promptInput.value = defaultValue;
-    promptModal.classList.remove('hidden');
-    promptInput.focus();
-    promptInput.select();
+    titleEl.textContent = title;
+    labelEl.textContent = message;
+    input.value = defaultValue;
+    modal.classList.remove('hidden');
+    input.focus();
+    input.select();
 
     const cleanup = (result) => {
-      promptModal.classList.add('hidden');
-      confirmPrompt.onclick = null;
-      cancelPrompt.onclick = null;
-      closePrompt.onclick = null;
-      promptInput.onkeydown = null;
+      modal.classList.add('hidden');
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+      closeBtn.onclick = null;
+      input.onkeydown = null;
       resolve(result);
     };
 
-    confirmPrompt.onclick = () => cleanup(promptInput.value);
-    cancelPrompt.onclick = () => cleanup(null);
-    closePrompt.onclick = () => cleanup(null);
-
-    promptInput.onkeydown = (e) => {
-      if (e.key === 'Enter') cleanup(promptInput.value);
+    confirmBtn.onclick = () => cleanup(input.value);
+    cancelBtn.onclick = () => cleanup(null);
+    closeBtn.onclick = () => cleanup(null);
+    input.onkeydown = (e) => {
+      if (e.key === 'Enter') cleanup(input.value);
       if (e.key === 'Escape') cleanup(null);
     };
   });
 }
 
-// Utility functions
-function setStatus(text, ok = false) {
-  statusEl.textContent = text;
-  statusEl.style.color = ok ? 'var(--success)' : 'var(--text-secondary)';
-}
-
+// Utility: API call
 async function api(path, opts = {}) {
   const headers = opts.headers || {};
-  if (token) headers['x-session-token'] = token;
+  if (state.token) headers['x-session-token'] = state.token;
   const res = await fetch(path, { ...opts, headers });
   if (!res.ok) {
-    let err = await res.json().catch(() => ({}));
+    const err = await res.json().catch(() => ({}));
     throw new Error(err.details || err.error || `HTTP ${res.status}`);
   }
   const ctype = res.headers.get('content-type') || '';
@@ -176,89 +152,74 @@ async function api(path, opts = {}) {
   return res;
 }
 
+// Utility: Format bytes
 function fmtBytes(bytes) {
   if (bytes === 0) return '0 B';
-  if (!bytes && bytes !== 0) return '—';
+  if (!bytes) return '—';
   const k = 1024;
   const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+// Utility: Format date
 function fmtDate(ms) {
   if (!ms) return '—';
   try {
     return new Date(ms).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
   } catch { return '—'; }
 }
 
-// Breadcrumbs
+// Utility: Set status
+function setStatus(text, ok = false) {
+  elements.status.textContent = text;
+  elements.status.style.color = ok ? 'var(--success)' : 'var(--text-secondary)';
+}
+
+// Get file icon
+function getFileIcon(filename, type) {
+  if (type === 'dir') {
+    return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" fill="#60A5FA"/>
+      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" stroke="#3B82F6" stroke-width="1.5"/>
+    </svg>`;
+  }
+  const ext = filename.split('.').pop().toLowerCase();
+  const colors = {
+    'js': '#F7DF1E', 'jsx': '#61DAFB', 'ts': '#3178C6', 'tsx': '#3178C6', 'json': '#F59E0B',
+    'html': '#E34F26', 'css': '#1572B6', 'scss': '#CC6699',
+    'png': '#10B981', 'jpg': '#10B981', 'svg': '#10B981',
+    'md': '#374151', 'txt': '#6B7280', 'pdf': '#DC2626',
+    'py': '#3776AB', 'rb': '#CC342D', 'php': '#777BB4',
+    'zip': '#F59E0B', 'gz': '#F59E0B', 'sh': '#4EAA25'
+  };
+  const color = colors[ext] || '#9CA3AF';
+  return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M26 28H6C4.89543 28 4 27.1046 4 26V6C4 4.89543 4.89543 4 6 4H18L28 14V26C28 27.1046 27.1046 28 26 28Z" fill="${color}"/>
+    <path d="M18 4L28 14H20C18.8954 14 18 13.1046 18 12V4Z" fill="#fff" fill-opacity="0.3"/>
+  </svg>`;
+}
+
+// Render breadcrumbs
 function renderCrumbs(pathStr) {
   const parts = pathStr.split('/').filter(Boolean);
   const items = ['<span class="breadcrumb-item" data-path="/">/</span>'];
   let accum = '';
   for (const p of parts) {
     accum += '/' + p;
-    items.push(`<span class="breadcrumb-separator">/</span>`);
+    items.push('<span class="breadcrumb-separator">/</span>');
     items.push(`<span class="breadcrumb-item" data-path="${accum}">${p}</span>`);
   }
-  breadcrumbs.innerHTML = items.join('');
-  breadcrumbs.querySelectorAll('.breadcrumb-item').forEach((span) => {
+  elements.breadcrumbs.innerHTML = items.join('');
+  elements.breadcrumbs.querySelectorAll('.breadcrumb-item').forEach(span => {
     span.addEventListener('click', () => changeDir(span.dataset.path));
   });
 }
 
-// File listing
-async function list(pathStr) {
-  renderCrumbs(pathStr);
-  const data = await api(`/api/list?path=${encodeURIComponent(pathStr)}`);
-  fileListBody.innerHTML = '';
-  fileGrid.innerHTML = '';
-  selectedItems.clear();
-
-  for (const item of data.items) {
-    if (currentView === 'list') {
-      createListItem(item);
-    } else {
-      createGridItem(item);
-    }
-  }
-}
-
-// Get SVG icon for file/folder
-function getFileIcon(filename, type) {
-  if (type === 'dir') {
-    return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" fill="#60A5FA"/>
-      <path d="M28 26H4C2.89543 26 2 25.1046 2 24V10C2 8.89543 2.89543 8 4 8H13L15 11H28C29.1046 11 30 11.8954 30 13V24C30 25.1046 29.1046 26 28 26Z" stroke="#3B82F6" stroke-width="1.5" stroke-linejoin="round"/>
-    </svg>`;
-  }
-
-  const ext = filename.split('.').pop().toLowerCase();
-  const iconMap = {
-    'js': '#F7DF1E', 'jsx': '#61DAFB', 'ts': '#3178C6', 'tsx': '#3178C6', 'json': '#F59E0B',
-    'html': '#E34F26', 'css': '#1572B6', 'scss': '#CC6699',
-    'png': '#10B981', 'jpg': '#10B981', 'svg': '#10B981',
-    'md': '#374151', 'txt': '#6B7280', 'pdf': '#DC2626',
-    'py': '#3776AB', 'rb': '#CC342D', 'php': '#777BB4',
-    'zip': '#F59E0B', 'gz': '#F59E0B',
-    'sh': '#4EAA25', 'bash': '#4EAA25'
-  };
-  const color = iconMap[ext] || '#9CA3AF';
-
-  return `<svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <path d="M26 28H6C4.89543 28 4 27.1046 4 26V6C4 4.89543 4.89543 4 6 4H18L28 14V26C28 27.1046 27.1046 28 26 28Z" fill="${color}"/>
-    <path d="M18 4L28 14H20C18.8954 14 18 13.1046 18 12V4Z" fill="#fff" fill-opacity="0.3"/>
-    <path d="M26 28H6C4.89543 28 4 27.1046 4 26V6C4 4.89543 4.89543 4 6 4H18L28 14V26C28 27.1046 27.1046 28 26 28Z" stroke="${color}" stroke-opacity="0.5" stroke-width="1" stroke-linejoin="round"/>
-  </svg>`;
-}
-
+// Create list item
 function createListItem(item) {
   const row = document.createElement('div');
   row.className = 'file-item';
@@ -266,54 +227,57 @@ function createListItem(item) {
   row.dataset.type = item.type;
   row.dataset.name = item.name;
 
-  // Name column
   const nameDiv = document.createElement('div');
   nameDiv.className = 'file-item-name';
   const icon = document.createElement('div');
   icon.className = 'file-icon ' + (item.type === 'dir' ? 'folder' : 'file');
   icon.innerHTML = getFileIcon(item.name, item.type);
-
   const nameSpan = document.createElement('span');
   nameSpan.textContent = item.name;
-  nameDiv.appendChild(icon);
-  nameDiv.appendChild(nameSpan);
+  nameDiv.append(icon, nameSpan);
 
-  // Size column
   const sizeDiv = document.createElement('div');
   sizeDiv.className = 'file-size';
   sizeDiv.textContent = item.type === 'dir' ? '—' : fmtBytes(item.size);
 
-  // Modified column
   const modDiv = document.createElement('div');
   modDiv.className = 'file-modified';
   modDiv.textContent = fmtDate(item.modifyTime);
 
   row.append(nameDiv, sizeDiv, modDiv);
 
-  // Multi-select events
+  // Events - FIX: Prevent double-click selection issue
+  let clickTimeout = null;
   row.addEventListener('click', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      toggleSelectItem(row);
-    } else if (e.shiftKey && selectedItems.size > 0) {
-      selectRangeItems(row);
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      clickTimeout = null;
+      // Double click
+      if (item.type === 'dir') {
+        changeDir(item.path);
+      } else {
+        openEditor(item.path);
+      }
     } else {
-      selectSingleItem(row);
-    }
-  });
-
-  row.addEventListener('dblclick', () => {
-    if (item.type === 'dir') {
-      changeDir(item.path);
-    } else {
-      openEditor(item.path);
+      clickTimeout = setTimeout(() => {
+        clickTimeout = null;
+        // Single click
+        if (e.ctrlKey || e.metaKey) {
+          toggleSelectItem(row);
+        } else if (e.shiftKey && state.selectedItems.size > 0) {
+          selectRangeItems(row);
+        } else {
+          selectSingleItem(row);
+        }
+      }, 250);
     }
   });
 
   row.addEventListener('contextmenu', (e) => showContextMenu(e, row));
-
-  fileListBody.appendChild(row);
+  elements.fileListBody.appendChild(row);
 }
 
+// Create grid item
 function createGridItem(item) {
   const gridItem = document.createElement('div');
   gridItem.className = 'file-grid-item';
@@ -329,112 +293,131 @@ function createGridItem(item) {
   nameDiv.className = 'file-grid-item-name';
   nameDiv.textContent = item.name;
 
-  gridItem.appendChild(icon);
-  gridItem.appendChild(nameDiv);
+  gridItem.append(icon, nameDiv);
 
-  // Multi-select events
+  let clickTimeout = null;
   gridItem.addEventListener('click', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-      toggleSelectGridItem(gridItem);
+    if (clickTimeout) {
+      clearTimeout(clickTimeout);
+      clickTimeout = null;
+      if (item.type === 'dir') {
+        changeDir(item.path);
+      } else {
+        openEditor(item.path);
+      }
     } else {
-      selectSingleGridItem(gridItem);
-    }
-  });
-
-  gridItem.addEventListener('dblclick', () => {
-    if (item.type === 'dir') {
-      changeDir(item.path);
-    } else {
-      openEditor(item.path);
+      clickTimeout = setTimeout(() => {
+        clickTimeout = null;
+        if (e.ctrlKey || e.metaKey) {
+          toggleSelectGridItem(gridItem);
+        } else {
+          selectSingleGridItem(gridItem);
+        }
+      }, 250);
     }
   });
 
   gridItem.addEventListener('contextmenu', (e) => showContextMenu(e, gridItem));
-
-  fileGrid.appendChild(gridItem);
+  elements.fileGrid.appendChild(gridItem);
 }
 
-// Multi-select functions
+// Selection functions
 function selectSingleItem(row) {
   document.querySelectorAll('.file-item').forEach(r => r.classList.remove('selected'));
-  selectedItems.clear();
+  state.selectedItems.clear();
   row.classList.add('selected');
-  selectedItems.add(row.dataset.path);
+  state.selectedItems.add(row.dataset.path);
 }
 
 function toggleSelectItem(row) {
-  if (selectedItems.has(row.dataset.path)) {
+  if (state.selectedItems.has(row.dataset.path)) {
     row.classList.remove('selected');
-    selectedItems.delete(row.dataset.path);
+    state.selectedItems.delete(row.dataset.path);
   } else {
     row.classList.add('selected');
-    selectedItems.add(row.dataset.path);
+    state.selectedItems.add(row.dataset.path);
   }
 }
 
 function selectRangeItems(row) {
   const allRows = Array.from(document.querySelectorAll('.file-item'));
-  const lastSelected = Array.from(selectedItems)[selectedItems.size - 1];
+  const lastSelected = Array.from(state.selectedItems)[state.selectedItems.size - 1];
   const lastRow = allRows.find(r => r.dataset.path === lastSelected);
-
-  if (!lastRow) {
-    selectSingleItem(row);
-    return;
-  }
-
+  if (!lastRow) return selectSingleItem(row);
   const startIdx = allRows.indexOf(lastRow);
   const endIdx = allRows.indexOf(row);
   const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
-
   for (let i = from; i <= to; i++) {
     allRows[i].classList.add('selected');
-    selectedItems.add(allRows[i].dataset.path);
+    state.selectedItems.add(allRows[i].dataset.path);
   }
 }
 
 function selectSingleGridItem(gridItem) {
   document.querySelectorAll('.file-grid-item').forEach(r => r.classList.remove('selected'));
-  selectedItems.clear();
+  state.selectedItems.clear();
   gridItem.classList.add('selected');
-  selectedItems.add(gridItem.dataset.path);
+  state.selectedItems.add(gridItem.dataset.path);
 }
 
 function toggleSelectGridItem(gridItem) {
-  if (selectedItems.has(gridItem.dataset.path)) {
+  if (state.selectedItems.has(gridItem.dataset.path)) {
     gridItem.classList.remove('selected');
-    selectedItems.delete(gridItem.dataset.path);
+    state.selectedItems.delete(gridItem.dataset.path);
   } else {
     gridItem.classList.add('selected');
-    selectedItems.add(gridItem.dataset.path);
+    state.selectedItems.add(gridItem.dataset.path);
   }
 }
 
-async function changeDir(next) {
-  if (next && next !== currentPath) {
-    backStack.push(currentPath);
-    fwdStack = [];
+// List files
+async function list(pathStr) {
+  renderCrumbs(pathStr);
+  const data = await api(`/api/list?path=${encodeURIComponent(pathStr)}`);
+  elements.fileListBody.innerHTML = '';
+  elements.fileGrid.innerHTML = '';
+  state.selectedItems.clear();
+  state.allFileItems = data.items;
+
+  for (const item of data.items) {
+    if (state.currentView === 'list') {
+      createListItem(item);
+    } else {
+      createGridItem(item);
+    }
   }
-  currentPath = next || '/';
-  await list(currentPath);
+}
+
+// Change directory
+async function changeDir(next) {
+  if (next && next !== state.currentPath) {
+    state.backStack.push(state.currentPath);
+    state.fwdStack = [];
+  }
+  state.currentPath = next || '/';
+  await list(state.currentPath);
   persist();
 }
 
-// Context Menu
+// Context menu
 function showContextMenu(e, element) {
   e.preventDefault();
-
-  if (!selectedItems.has(element.dataset.path)) {
-    selectSingleItem(element);
+  if (!state.selectedItems.has(element.dataset.path)) {
+    if (state.currentView === 'list') {
+      selectSingleItem(element);
+    } else {
+      selectSingleGridItem(element);
+    }
   }
-
-  contextItem = {
+  state.contextItem = {
     path: element.dataset.path,
     type: element.dataset.type,
     name: element.dataset.name
   };
 
-  // Enable/disable menu items based on type
-  if (contextItem.type === 'dir') {
+  const ctxOpen = el('ctxOpen');
+  const ctxDownload = el('ctxDownload');
+  if (state.contextItem.type === 'dir') {
     ctxOpen.classList.add('disabled');
     ctxDownload.classList.add('disabled');
   } else {
@@ -442,83 +425,45 @@ function showContextMenu(e, element) {
     ctxDownload.classList.remove('disabled');
   }
 
-  contextMenu.style.left = e.pageX + 'px';
-  contextMenu.style.top = e.pageY + 'px';
-  contextMenu.classList.remove('hidden');
+  elements.contextMenu.style.left = e.pageX + 'px';
+  elements.contextMenu.style.top = e.pageY + 'px';
+  elements.contextMenu.classList.remove('hidden');
 }
 
 function hideContextMenu() {
-  contextMenu.classList.add('hidden');
-  contextItem = null;
+  elements.contextMenu.classList.add('hidden');
+  state.contextItem = null;
 }
 
-// Click outside to hide context menu
 document.addEventListener('click', (e) => {
-  if (!contextMenu.contains(e.target)) {
+  if (!elements.contextMenu.contains(e.target)) {
     hideContextMenu();
   }
 });
 
 // Context menu actions
-ctxOpen.addEventListener('click', () => {
-  if (contextItem && contextItem.type !== 'dir') {
-    openEditor(contextItem.path);
+el('ctxOpen').addEventListener('click', () => {
+  if (state.contextItem && state.contextItem.type !== 'dir') {
+    openEditor(state.contextItem.path);
   }
   hideContextMenu();
 });
 
-ctxDownload.addEventListener('click', () => {
-  if (contextItem && contextItem.type !== 'dir') {
-    download(contextItem.path);
+el('ctxDownload').addEventListener('click', () => {
+  if (state.contextItem && state.contextItem.type !== 'dir') {
+    download(state.contextItem.path);
   }
   hideContextMenu();
 });
 
-ctxRename.addEventListener('click', async () => {
-  if (contextItem) {
-    await rename(contextItem.path);
-  }
+el('ctxRename').addEventListener('click', async () => {
+  if (state.contextItem) await rename(state.contextItem.path);
   hideContextMenu();
 });
 
-ctxDelete.addEventListener('click', async () => {
-  if (contextItem) {
-    await remove(contextItem.path, contextItem.type);
-  }
+el('ctxDelete').addEventListener('click', async () => {
+  if (state.contextItem) await remove(state.contextItem.path, state.contextItem.type);
   hideContextMenu();
-});
-
-// Trash button - delete multiple selected files
-trashBtn.addEventListener('click', async () => {
-  if (selectedItems.size === 0) {
-    showNotification('No files selected', 'warning');
-    return;
-  }
-
-  const confirmed = await customConfirm(
-    `Delete ${selectedItems.size} selected item(s)?`,
-    'Delete Confirmation'
-  );
-
-  if (!confirmed) return;
-
-  const items = Array.from(selectedItems);
-  for (const path of items) {
-    try {
-      const element = document.querySelector(`[data-path="${path}"]`);
-      const type = element?.dataset.type || 'file';
-      await api('/api/delete', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ path, type })
-      });
-    } catch (err) {
-      showNotification(`Failed to delete ${path}: ${err.message}`, 'error');
-    }
-  }
-
-  showNotification(`Deleted ${items.length} item(s)`, 'success');
-  await list(currentPath);
 });
 
 // File operations
@@ -539,16 +484,15 @@ async function download(p) {
 }
 
 async function remove(p, type) {
-  const confirmed = await customConfirm(`Delete ${p}?`, 'Delete Confirmation');
+  const confirmed = await customConfirm(`Delete ${p}?`, 'Delete');
   if (!confirmed) return;
-
   try {
     await api('/api/delete', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: p, type })
     });
-    await list(currentPath);
+    await list(state.currentPath);
     showNotification('Deleted successfully', 'success');
   } catch (err) {
     showNotification(`Delete failed: ${err.message}`, 'error');
@@ -560,26 +504,29 @@ async function rename(oldPath) {
   const dir = oldPath.slice(0, oldPath.length - base.length);
   const name = await customPrompt('New name:', base, 'Rename');
   if (!name || name === base) return;
-
   const newPath = (dir.endsWith('/') ? dir : dir + '/') + name;
-
   try {
     await api('/api/rename', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ oldPath, newPath })
     });
-    await list(currentPath);
+    await list(state.currentPath);
     showNotification('Renamed successfully', 'success');
   } catch (err) {
     showNotification(`Rename failed: ${err.message}`, 'error');
   }
 }
 
-// Editor Modal
+// Editor
 async function openEditor(p) {
-  editorModal.classList.remove('hidden');
-  editorTitle.textContent = p;
+  const modal = el('editorModal');
+  const title = el('editorTitle');
+  const editor = el('editor');
+  const saveBtn = el('saveBtn');
+
+  modal.classList.remove('hidden');
+  title.textContent = p;
   editor.value = 'Loading...';
   editor.disabled = true;
   saveBtn.disabled = true;
@@ -597,8 +544,8 @@ async function openEditor(p) {
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ path: p, content: editor.value })
         });
-        await list(currentPath);
-        closeEditorModalFn();
+        await list(state.currentPath);
+        modal.classList.add('hidden');
         showNotification('File saved', 'success');
       } catch (err) {
         showNotification(`Save failed: ${err.message}`, 'error');
@@ -607,58 +554,24 @@ async function openEditor(p) {
       }
     };
   } catch (err) {
-    editor.value = 'Cannot open: ' + err.message + '\n\nBinary or large files cannot be edited. You can download it instead.';
+    editor.value = `Cannot open: ${err.message}\n\nBinary or large files cannot be edited.`;
     editor.disabled = true;
   }
 }
 
-function closeEditorModalFn() {
-  editorModal.classList.add('hidden');
-}
+el('closeEditorModal').addEventListener('click', () => el('editorModal').classList.add('hidden'));
+el('cancelEditBtn').addEventListener('click', () => el('editorModal').classList.add('hidden'));
+el('editorModal').querySelector('.modal-backdrop').addEventListener('click', () => el('editorModal').classList.add('hidden'));
 
-closeEditorModal.addEventListener('click', closeEditorModalFn);
-cancelEditBtn.addEventListener('click', closeEditorModalFn);
-editorModal.querySelector('.modal-backdrop').addEventListener('click', closeEditorModalFn);
-
-// Connection Modal
-function openConnectionModal() {
-  connectionModal.classList.remove('hidden');
-}
-
-function closeConnectionModalFn() {
-  connectionModal.classList.add('hidden');
-}
-
-connectModalBtn.addEventListener('click', openConnectionModal);
-emptyConnectBtn.addEventListener('click', openConnectionModal);
-closeConnectionModal.addEventListener('click', closeConnectionModalFn);
-cancelConnectBtn.addEventListener('click', closeConnectionModalFn);
-connectionModal.querySelector('.modal-backdrop').addEventListener('click', closeConnectionModalFn);
-
-// Save connection properly
-function showSaveConnectionModal(connectionInfo) {
-  const defaultName = `${connectionInfo.username}@${connectionInfo.host}`;
-  saveConnName.textContent = defaultName;
-  saveConnCustomName.value = '';
-  saveConnectionModal.classList.remove('hidden');
-
-  return new Promise((resolve) => {
-    const cleanup = (shouldSave) => {
-      saveConnectionModal.classList.add('hidden');
-      confirmSaveConnection.onclick = null;
-      cancelSaveConnection.onclick = null;
-      closeSaveConnection.onclick = null;
-      resolve(shouldSave ? (saveConnCustomName.value || defaultName) : null);
-    };
-
-    confirmSaveConnection.onclick = () => cleanup(true);
-    cancelSaveConnection.onclick = () => cleanup(false);
-    closeSaveConnection.onclick = () => cleanup(false);
-  });
-}
+// Connection modal
+elements.connectModalBtn.addEventListener('click', () => el('connectionModal').classList.remove('hidden'));
+elements.emptyConnectBtn.addEventListener('click', () => el('connectionModal').classList.remove('hidden'));
+el('closeConnectionModal').addEventListener('click', () => el('connectionModal').classList.add('hidden'));
+el('cancelConnectBtn').addEventListener('click', () => el('connectionModal').classList.add('hidden'));
+el('connectionModal').querySelector('.modal-backdrop').addEventListener('click', () => el('connectionModal').classList.add('hidden'));
 
 // Connect
-connectBtn.addEventListener('click', async () => {
+elements.connectBtn.addEventListener('click', async () => {
   const host = el('host').value.trim();
   const port = Number(el('port').value) || 22;
   const username = el('username').value.trim();
@@ -666,68 +579,46 @@ connectBtn.addEventListener('click', async () => {
   const privateKey = el('privateKey').value.trim();
   const passphrase = el('passphrase').value;
 
-  connectBtn.disabled = true;
+  elements.connectBtn.disabled = true;
   setStatus('Connecting...');
 
   try {
     const data = await api('/api/connect', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        host,
-        port,
-        username,
-        password: password || undefined,
-        privateKey: privateKey || undefined,
-        passphrase: passphrase || undefined
-      })
+      body: JSON.stringify({ host, port, username, password: password || undefined, privateKey: privateKey || undefined, passphrase: passphrase || undefined })
     });
 
-    token = data.token;
-    userHost = `${data.username}@${data.host}`;
-    setStatus(`Connected: ${userHost}`, true);
+    state.token = data.token;
+    state.userHost = `${data.username}@${data.host}`;
+    setStatus(`Connected: ${state.userHost}`, true);
     document.body.setAttribute('data-connected', 'true');
     await changeDir('/');
-    localStorage.setItem('rf_token', token);
-    localStorage.setItem('rf_userhost', userHost);
+    localStorage.setItem('rf_token', state.token);
+    localStorage.setItem('rf_userhost', state.userHost);
     renderFavorites();
-    closeConnectionModalFn();
+    updateUserDisplay();
+    el('connectionModal').classList.add('hidden');
 
-    // Add to server history
-    const historyEntry = {
-      host,
-      port,
-      username,
-      timestamp: Date.now()
-    };
-    serverHistory.unshift(historyEntry);
-    // Keep only last 10
-    serverHistory = serverHistory.slice(0, 10);
-    localStorage.setItem('rf_serverHistory', JSON.stringify(serverHistory));
+    // Server history
+    const historyEntry = { host, port, username, timestamp: Date.now() };
+    state.serverHistory.unshift(historyEntry);
+    state.serverHistory = state.serverHistory.slice(0, 10);
+    localStorage.setItem('rf_serverHistory', JSON.stringify(state.serverHistory));
 
-    // Ask to save connection
+    // Ask to save
     const connectionName = await showSaveConnectionModal({ host, port, username });
-
     if (connectionName) {
-      const storePasswordConfirm = password ? await customConfirm(
-        'Store password in browser?',
-        'Security Warning'
-      ) : false;
-
-      const id = crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-      const newConnection = {
-        id,
-        name: connectionName,
-        host,
-        port,
-        username,
-        password: storePasswordConfirm ? password : undefined,
+      const storePassword = password ? await customConfirm('Store password in browser?', 'Security Warning') : false;
+      const id = crypto.randomUUID();
+      state.savedConnections.push({
+        id, name: connectionName, host, port, username,
+        password: storePassword ? password : undefined,
         privateKey: privateKey || undefined,
         passphrase: passphrase || undefined
-      };
-
-      savedConnections.push(newConnection);
-      localStorage.setItem('rf_savedConnections', JSON.stringify(savedConnections));
+      });
+      localStorage.setItem('rf_savedConnections', JSON.stringify(state.savedConnections));
+      renderSavedConnections();
       showNotification('Connection saved', 'success');
     }
 
@@ -736,311 +627,374 @@ connectBtn.addEventListener('click', async () => {
     showNotification(`Connection error: ${e.message}`, 'error');
     setStatus('Not connected');
   } finally {
-    connectBtn.disabled = false;
+    elements.connectBtn.disabled = false;
   }
 });
 
 // Disconnect
 async function disconnect() {
-  if (!token) return;
-  try {
-    await api('/api/disconnect', { method: 'POST' });
-  } catch {}
-  token = null;
-  userHost = null;
-  currentPath = '/';
+  if (!state.token) return;
+  try { await api('/api/disconnect', { method: 'POST' }); } catch {}
+  state.token = null;
+  state.userHost = null;
+  state.currentPath = '/';
   setStatus('Not connected');
   document.body.setAttribute('data-connected', 'false');
-  fileListBody.innerHTML = '';
+  elements.fileListBody.innerHTML = '';
   localStorage.removeItem('rf_token');
   localStorage.removeItem('rf_path');
   localStorage.removeItem('rf_userhost');
+  updateUserDisplay();
   showNotification('Disconnected', 'info');
+
+  // Destroy all terminals
+  destroyAllTerminals();
 }
 
-headerDisconnect.addEventListener('click', disconnect);
+elements.headerDisconnect.addEventListener('click', disconnect);
 
 // Navigation
-backBtn.addEventListener('click', async () => {
-  if (!backStack.length) return;
-  fwdStack.push(currentPath);
-  currentPath = backStack.pop();
-  await list(currentPath);
+elements.backBtn.addEventListener('click', async () => {
+  if (!state.backStack.length) return;
+  state.fwdStack.push(state.currentPath);
+  state.currentPath = state.backStack.pop();
+  await list(state.currentPath);
 });
 
-forwardBtn.addEventListener('click', async () => {
-  if (!fwdStack.length) return;
-  backStack.push(currentPath);
-  currentPath = fwdStack.pop();
-  await list(currentPath);
+elements.forwardBtn.addEventListener('click', async () => {
+  if (!state.fwdStack.length) return;
+  state.backStack.push(state.currentPath);
+  state.currentPath = state.fwdStack.pop();
+  await list(state.currentPath);
 });
 
-refreshBtn.addEventListener('click', () => list(currentPath));
+elements.refreshBtn.addEventListener('click', () => list(state.currentPath));
 
 // View toggle
-listViewBtn.addEventListener('click', () => {
-  currentView = 'list';
-  fileList.classList.remove('hidden');
-  fileGrid.classList.add('hidden');
-  listViewBtn.classList.add('active');
-  gridViewBtn.classList.remove('active');
-  list(currentPath);
+elements.listViewBtn.addEventListener('click', () => {
+  state.currentView = 'list';
+  elements.fileList.classList.remove('hidden');
+  elements.fileGrid.classList.add('hidden');
+  elements.listViewBtn.classList.add('active');
+  elements.gridViewBtn.classList.remove('active');
+  list(state.currentPath);
 });
 
-gridViewBtn.addEventListener('click', () => {
-  currentView = 'grid';
-  fileList.classList.add('hidden');
-  fileGrid.classList.remove('hidden');
-  gridViewBtn.classList.add('active');
-  listViewBtn.classList.remove('active');
-  list(currentPath);
+elements.gridViewBtn.addEventListener('click', () => {
+  state.currentView = 'grid';
+  elements.fileList.classList.add('hidden');
+  elements.fileGrid.classList.remove('hidden');
+  elements.gridViewBtn.classList.add('active');
+  elements.listViewBtn.classList.remove('active');
+  list(state.currentPath);
 });
 
-// Real terminal instance
-let terminalInstance = null;
-let terminalSocket = null;
-let terminalFitAddon = null;
-
-// Terminal toggle
-terminalToggle.addEventListener('click', () => {
-  if (!token) {
-    showNotification('Please connect to a server first', 'warning');
+// Multi-Terminal Management
+function createTerminal() {
+  if (!state.token) {
+    showNotification('Please connect first', 'warning');
     return;
   }
-  terminalOpen = !terminalOpen;
-  if (terminalOpen) {
-    terminalPanel.classList.remove('hidden');
-    mainContent.classList.add('terminal-open');
-    initRealTerminal();
-  } else {
-    terminalPanel.classList.add('hidden');
-    mainContent.classList.remove('terminal-open');
-    destroyRealTerminal();
-  }
-});
 
-closeTerminal.addEventListener('click', () => {
-  terminalOpen = false;
-  terminalPanel.classList.add('hidden');
-  mainContent.classList.remove('terminal-open');
-  destroyRealTerminal();
-});
+  const terminalId = 'term_' + Date.now();
+  const container = document.createElement('div');
+  container.className = 'terminal-container';
+  container.id = terminalId;
+  elements.terminalBody.appendChild(container);
 
-// Real interactive terminal with xterm.js - optimized
-function initRealTerminal() {
-  if (terminalInstance) return;
-
-  terminalBody.innerHTML = '';
-
-  // Create xterm instance with optimized settings
-  terminalInstance = new Terminal({
+  const terminal = new Terminal({
     cursorBlink: true,
     fontSize: 13,
-    fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace',
+    fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", Menlo, monospace',
     theme: {
-      background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#1e1e1e' : '#ffffff',
+      background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#0a0a0a' : '#ffffff',
       foreground: document.documentElement.getAttribute('data-theme') === 'dark' ? '#d4d4d4' : '#1d1d1f',
       cursor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#d4d4d4' : '#1d1d1f'
     },
-    scrollback: 1000, // Reduced from 10000 for better performance
-    rendererType: 'canvas', // Use canvas renderer for better performance
-    fastScrollModifier: 'shift'
+    scrollback: 1000,
+    rendererType: 'canvas'
   });
 
-  // Fit addon
-  terminalFitAddon = new FitAddon.FitAddon();
-  terminalInstance.loadAddon(terminalFitAddon);
-  terminalInstance.open(terminalBody);
+  const fitAddon = new FitAddon.FitAddon();
+  terminal.loadAddon(fitAddon);
+  terminal.open(container);
+  setTimeout(() => fitAddon.fit(), 100);
 
-  setTimeout(() => {
-    terminalFitAddon.fit();
-  }, 100);
+  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const wsUrl = `${wsProto}//${window.location.host}?token=${state.token}`;
+  const socket = new WebSocket(wsUrl);
 
-  // Throttled resize
+  socket.onopen = () => terminal.writeln('\x1b[32m✓ Connected\x1b[0m\r\n');
+  socket.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'output') terminal.write(msg.data);
+      else if (msg.type === 'error') terminal.writeln(`\r\n\x1b[31m✗ ${msg.data}\x1b[0m\r\n`);
+    } catch {}
+  };
+  socket.onerror = () => terminal.writeln('\r\n\x1b[31m✗ Error\x1b[0m\r\n');
+  socket.onclose = () => terminal.writeln('\r\n\x1b[33m○ Closed\x1b[0m\r\n');
+  terminal.onData((data) => {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: 'input', data }));
+    }
+  });
+
   let resizeTimeout;
   const resizeObserver = new ResizeObserver(() => {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(() => {
       try {
-        terminalFitAddon.fit();
-        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-          terminalSocket.send(JSON.stringify({
+        fitAddon.fit();
+        if (socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({
             type: 'resize',
-            rows: terminalInstance.rows,
-            cols: terminalInstance.cols
+            rows: terminal.rows,
+            cols: terminal.cols
           }));
         }
-      } catch (e) {}
+      } catch {}
     }, 100);
   });
-  resizeObserver.observe(terminalBody);
+  resizeObserver.observe(container);
 
-  // WebSocket connection
-  const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${wsProto}//${window.location.host}?token=${token}`;
+  state.terminals.push({ id: terminalId, terminal, fitAddon, socket, resizeObserver, container });
+  state.activeTerminalId = terminalId;
+  renderTerminalTabs();
+  switchTerminal(terminalId);
+}
 
-  terminalSocket = new WebSocket(wsUrl);
+function switchTerminal(terminalId) {
+  state.terminals.forEach(t => {
+    t.container.classList.remove('active');
+  });
+  const term = state.terminals.find(t => t.id === terminalId);
+  if (term) {
+    term.container.classList.add('active');
+    state.activeTerminalId = terminalId;
+    setTimeout(() => term.fitAddon.fit(), 50);
+    renderTerminalTabs();
+  }
+}
 
-  terminalSocket.onopen = () => {
-    terminalInstance.writeln('\x1b[32m✓ Connected to remote server\x1b[0m\r\n');
-  };
+function closeTerminalTab(terminalId) {
+  const index = state.terminals.findIndex(t => t.id === terminalId);
+  if (index === -1) return;
 
-  terminalSocket.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.type === 'output') {
-        terminalInstance.write(msg.data);
-      } else if (msg.type === 'error') {
-        terminalInstance.writeln(`\r\n\x1b[31m✗ Error: ${msg.data}\x1b[0m\r\n`);
-      }
-    } catch (e) {}
-  };
+  const term = state.terminals[index];
+  if (term.socket) term.socket.close();
+  if (term.terminal) term.terminal.dispose();
+  if (term.resizeObserver) term.resizeObserver.disconnect();
+  if (term.container) term.container.remove();
 
-  terminalSocket.onerror = () => {
-    terminalInstance.writeln('\r\n\x1b[31m✗ Connection error\x1b[0m\r\n');
-  };
+  state.terminals.splice(index, 1);
 
-  terminalSocket.onclose = () => {
-    terminalInstance.writeln('\r\n\x1b[33m○ Connection closed\x1b[0m\r\n');
-  };
+  if (state.terminals.length === 0) {
+    elements.terminalPanel.classList.add('hidden');
+    elements.mainContent.classList.remove('terminal-open');
+    state.activeTerminalId = null;
+  } else {
+    const newActive = state.terminals[Math.max(0, index - 1)];
+    switchTerminal(newActive.id);
+  }
 
-  // Terminal input → WebSocket
-  terminalInstance.onData((data) => {
-    if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-      terminalSocket.send(JSON.stringify({ type: 'input', data }));
-    }
+  renderTerminalTabs();
+}
+
+function renderTerminalTabs() {
+  elements.terminalTabs.innerHTML = '';
+  state.terminals.forEach((term, idx) => {
+    const tab = document.createElement('button');
+    tab.className = 'terminal-tab' + (term.id === state.activeTerminalId ? ' active' : '');
+    tab.innerHTML = `
+      <span>Terminal ${idx + 1}</span>
+      <span class="terminal-tab-close">✕</span>
+    `;
+    tab.querySelector('span:first-child').addEventListener('click', () => switchTerminal(term.id));
+    tab.querySelector('.terminal-tab-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeTerminalTab(term.id);
+    });
+    elements.terminalTabs.appendChild(tab);
   });
 }
 
-function destroyRealTerminal() {
-  if (terminalSocket) {
-    terminalSocket.close();
-    terminalSocket = null;
-  }
-  if (terminalInstance) {
-    terminalInstance.dispose();
-    terminalInstance = null;
-  }
-  terminalFitAddon = null;
+function destroyAllTerminals() {
+  state.terminals.forEach(term => {
+    if (term.socket) term.socket.close();
+    if (term.terminal) term.terminal.dispose();
+    if (term.resizeObserver) term.resizeObserver.disconnect();
+    if (term.container) term.container.remove();
+  });
+  state.terminals = [];
+  state.activeTerminalId = null;
+  elements.terminalPanel.classList.add('hidden');
+  elements.mainContent.classList.remove('terminal-open');
 }
 
-// File/Folder creation
-newFolderBtn.addEventListener('click', async () => {
+// Terminal toggle
+elements.terminalToggle.addEventListener('click', () => {
+  if (!state.token) {
+    showNotification('Connect first', 'warning');
+    return;
+  }
+
+  if (elements.terminalPanel.classList.contains('hidden')) {
+    elements.terminalPanel.classList.remove('hidden');
+    elements.mainContent.classList.add('terminal-open');
+    if (state.terminals.length === 0) {
+      createTerminal();
+    }
+  } else {
+    elements.terminalPanel.classList.add('hidden');
+    elements.mainContent.classList.remove('terminal-open');
+  }
+});
+
+elements.newTerminalBtn.addEventListener('click', createTerminal);
+elements.closeTerminal.addEventListener('click', () => {
+  elements.terminalPanel.classList.add('hidden');
+  elements.mainContent.classList.remove('terminal-open');
+});
+
+// New folder/file
+elements.newFolderBtn.addEventListener('click', async () => {
   const name = await customPrompt('Folder name:', '', 'New Folder');
   if (!name) return;
-  const p = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + name;
-
+  const p = (state.currentPath.endsWith('/') ? state.currentPath : state.currentPath + '/') + name;
   try {
     await api('/api/mkdir', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: p })
     });
-    await list(currentPath);
+    await list(state.currentPath);
     showNotification('Folder created', 'success');
   } catch (err) {
-    showNotification(`Failed to create folder: ${err.message}`, 'error');
+    showNotification(`Failed: ${err.message}`, 'error');
   }
 });
 
-newFileBtn.addEventListener('click', async () => {
+elements.newFileBtn.addEventListener('click', async () => {
   const name = await customPrompt('File name:', '', 'New File');
   if (!name) return;
-  const p = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + name;
-
+  const p = (state.currentPath.endsWith('/') ? state.currentPath : state.currentPath + '/') + name;
   try {
     await api('/api/touch', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ path: p, content: '' })
     });
-    await list(currentPath);
+    await list(state.currentPath);
     showNotification('File created', 'success');
   } catch (err) {
-    showNotification(`Failed to create file: ${err.message}`, 'error');
+    showNotification(`Failed: ${err.message}`, 'error');
   }
 });
 
-// Upload - multi-file support
-fileInput.setAttribute('multiple', 'true');
-fileInput.addEventListener('change', async (e) => {
+// Upload
+elements.fileInput.addEventListener('change', async (e) => {
   const files = Array.from(e.target.files);
-  if (files.length === 0) return;
-
+  if (!files.length) return;
   for (const file of files) {
-    const target = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + file.name;
+    const target = (state.currentPath.endsWith('/') ? state.currentPath : state.currentPath + '/') + file.name;
     const form = new FormData();
     form.append('file', file);
     form.append('path', target);
-
     try {
       await api('/api/upload', { method: 'POST', body: form });
     } catch (err) {
-      showNotification(`Upload failed for ${file.name}: ${err.message}`, 'error');
+      showNotification(`Upload failed for ${file.name}`, 'error');
     }
   }
-
-  await list(currentPath);
+  await list(state.currentPath);
   showNotification(`Uploaded ${files.length} file(s)`, 'success');
   e.target.value = '';
 });
 
-// Drag & drop upload
+// Drag & drop
 ['dragenter', 'dragover'].forEach(ev =>
-  fileList.addEventListener(ev, e => {
+  elements.fileList.addEventListener(ev, e => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    fileList.classList.add('drag-over');
+    elements.fileList.classList.add('drag-over');
   })
 );
 
 ['dragleave', 'drop'].forEach(ev =>
-  fileList.addEventListener(ev, e => {
+  elements.fileList.addEventListener(ev, e => {
     e.preventDefault();
-    fileList.classList.remove('drag-over');
+    elements.fileList.classList.remove('drag-over');
   })
 );
 
-fileList.addEventListener('drop', async (e) => {
+elements.fileList.addEventListener('drop', async (e) => {
   const files = [...e.dataTransfer.files];
   for (const file of files) {
-    const target = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + file.name;
+    const target = (state.currentPath.endsWith('/') ? state.currentPath : state.currentPath + '/') + file.name;
     const form = new FormData();
     form.append('file', file);
     form.append('path', target);
     try {
       await api('/api/upload', { method: 'POST', body: form });
     } catch (err) {
-      showNotification(`Failed: ${file.name} - ${err.message}`, 'error');
+      showNotification(`Failed: ${file.name}`, 'error');
     }
   }
-  await list(currentPath);
+  await list(state.currentPath);
   showNotification(`Uploaded ${files.length} file(s)`, 'success');
 });
 
+// Trash button
+elements.trashBtn.addEventListener('click', async () => {
+  if (!state.selectedItems.size) {
+    showNotification('No files selected', 'warning');
+    return;
+  }
+  const confirmed = await customConfirm(`Delete ${state.selectedItems.size} item(s)?`, 'Delete');
+  if (!confirmed) return;
+
+  const items = Array.from(state.selectedItems);
+  for (const path of items) {
+    try {
+      const element = document.querySelector(`[data-path="${path}"]`);
+      const type = element?.dataset.type || 'file';
+      await api('/api/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path, type })
+      });
+    } catch (err) {
+      showNotification(`Failed to delete ${path}`, 'error');
+    }
+  }
+  await list(state.currentPath);
+  showNotification(`Deleted ${items.length} item(s)`, 'success');
+});
+
 // Favorites
-favAddBtn.addEventListener('click', () => {
-  if (!userHost) {
+elements.favAddBtn.addEventListener('click', () => {
+  if (!state.userHost) {
     showNotification('Connect first', 'warning');
     return;
   }
-  const list = favorites[userHost] || [];
-  if (list.includes(currentPath)) {
+  const list = state.favorites[state.userHost] || [];
+  if (list.includes(state.currentPath)) {
     showNotification('Already in favorites', 'info');
     return;
   }
-  list.push(currentPath);
-  favorites[userHost] = list;
-  localStorage.setItem('rf_favorites', JSON.stringify(favorites));
+  list.push(state.currentPath);
+  state.favorites[state.userHost] = list;
+  localStorage.setItem('rf_favorites', JSON.stringify(state.favorites));
   renderFavorites();
   showNotification('Added to favorites', 'success');
 });
 
 function renderFavorites() {
-  favoritesEl.innerHTML = '';
-  const list = favorites[userHost] || [];
+  elements.favoritesEl.innerHTML = '';
+  const list = state.favorites[state.userHost] || [];
   if (!list.length) {
-    favoritesEl.innerHTML = '<div class="sidebar-empty">No favorites</div>';
+    elements.favoritesEl.innerHTML = '<div class="sidebar-empty">No favorites</div>';
     return;
   }
   for (const p of list) {
@@ -1055,105 +1009,94 @@ function renderFavorites() {
     rmBtn.textContent = '✕';
     rmBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      favorites[userHost] = (favorites[userHost] || []).filter(x => x !== p);
-      localStorage.setItem('rf_favorites', JSON.stringify(favorites));
+      state.favorites[state.userHost] = (state.favorites[state.userHost] || []).filter(x => x !== p);
+      localStorage.setItem('rf_favorites', JSON.stringify(state.favorites));
       renderFavorites();
     });
     div.append(nameSpan, rmBtn);
-    favoritesEl.appendChild(div);
+    elements.favoritesEl.appendChild(div);
   }
 }
 
-// Quick Search
-quickSearchToggle.addEventListener('click', () => {
-  if (!token) {
-    showNotification('Please connect to a server first', 'warning');
+// Saved Connections
+function renderSavedConnections() {
+  elements.savedConnectionsEl.innerHTML = '';
+  if (!state.savedConnections.length) {
+    elements.savedConnectionsEl.innerHTML = '<div class="sidebar-empty">No saved connections</div>';
     return;
   }
-  quickSearchModal.classList.remove('hidden');
-  searchInput.value = '';
-  searchResults.innerHTML = '<div class="search-empty">Type to search files...</div>';
-  searchInput.focus();
-});
+  state.savedConnections.forEach(conn => {
+    const div = document.createElement('div');
+    div.className = 'sidebar-item';
+    div.title = `${conn.username}@${conn.host}:${conn.port}`;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'sidebar-item-name';
+    nameSpan.textContent = conn.name;
+    const rmBtn = document.createElement('span');
+    rmBtn.className = 'sidebar-item-action';
+    rmBtn.textContent = '✕';
+    rmBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.savedConnections = state.savedConnections.filter(c => c.id !== conn.id);
+      localStorage.setItem('rf_savedConnections', JSON.stringify(state.savedConnections));
+      renderSavedConnections();
+    });
+    div.addEventListener('click', () => {
+      el('host').value = conn.host;
+      el('port').value = conn.port;
+      el('username').value = conn.username;
+      if (conn.password) el('password').value = conn.password;
+      if (conn.privateKey) el('privateKey').value = conn.privateKey;
+      if (conn.passphrase) el('passphrase').value = conn.passphrase;
+      el('connectionModal').classList.remove('hidden');
+    });
+    div.append(nameSpan, rmBtn);
+    elements.savedConnectionsEl.appendChild(div);
+  });
+}
 
-closeQuickSearch.addEventListener('click', () => {
-  quickSearchModal.classList.add('hidden');
-});
+function showSaveConnectionModal(connectionInfo) {
+  const defaultName = `${connectionInfo.username}@${connectionInfo.host}`;
+  el('saveConnName').textContent = defaultName;
+  el('saveConnCustomName').value = '';
+  el('saveConnectionModal').classList.remove('hidden');
 
-quickSearchModal.querySelector('.modal-backdrop').addEventListener('click', () => {
-  quickSearchModal.classList.add('hidden');
-});
-
-// Debounced search
-let searchTimeout;
-searchInput.addEventListener('input', async (e) => {
-  clearTimeout(searchTimeout);
-  const query = e.target.value.trim().toLowerCase();
-
-  if (!query) {
-    searchResults.innerHTML = '<div class="search-empty">Type to search files...</div>';
-    return;
-  }
-
-  searchTimeout = setTimeout(async () => {
-    try {
-      const data = await api(`/api/list?path=${encodeURIComponent(currentPath)}`);
-      const filtered = data.items.filter(item =>
-        item.name.toLowerCase().includes(query)
-      );
-
-      if (filtered.length === 0) {
-        searchResults.innerHTML = '<div class="search-empty">No results found</div>';
-        return;
-      }
-
-      searchResults.innerHTML = '';
-      filtered.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'search-result-item';
-        div.innerHTML = `
-          <div class="file-icon ${item.type === 'dir' ? 'folder' : 'file'}">${getFileIcon(item.name, item.type)}</div>
-          <span>${item.name}</span>
-        `;
-        div.addEventListener('click', () => {
-          if (item.type === 'dir') {
-            changeDir(item.path);
-          } else {
-            openEditor(item.path);
-          }
-          quickSearchModal.classList.add('hidden');
-        });
-        searchResults.appendChild(div);
-      });
-    } catch (err) {
-      searchResults.innerHTML = `<div class="search-empty">Error: ${err.message}</div>`;
-    }
-  }, 300);
-});
+  return new Promise((resolve) => {
+    const cleanup = (shouldSave) => {
+      el('saveConnectionModal').classList.add('hidden');
+      el('confirmSaveConnection').onclick = null;
+      el('cancelSaveConnection').onclick = null;
+      el('closeSaveConnection').onclick = null;
+      resolve(shouldSave ? (el('saveConnCustomName').value || defaultName) : null);
+    };
+    el('confirmSaveConnection').onclick = () => cleanup(true);
+    el('cancelSaveConnection').onclick = () => cleanup(false);
+    el('closeSaveConnection').onclick = () => cleanup(false);
+  });
+}
 
 // Server History
-serverHistoryToggle.addEventListener('click', () => {
-  serverHistoryModal.classList.remove('hidden');
+elements.serverHistoryToggle.addEventListener('click', () => {
+  el('serverHistoryModal').classList.remove('hidden');
   renderServerHistory();
 });
 
-closeServerHistory.addEventListener('click', () => {
-  serverHistoryModal.classList.add('hidden');
+el('closeServerHistory').addEventListener('click', () => {
+  el('serverHistoryModal').classList.add('hidden');
 });
 
-serverHistoryModal.querySelector('.modal-backdrop').addEventListener('click', () => {
-  serverHistoryModal.classList.add('hidden');
+el('serverHistoryModal').querySelector('.modal-backdrop').addEventListener('click', () => {
+  el('serverHistoryModal').classList.add('hidden');
 });
 
 function renderServerHistory() {
-  serverHistoryList.innerHTML = '';
-
-  if (serverHistory.length === 0) {
-    serverHistoryList.innerHTML = '<div class="server-history-empty">No recent connections</div>';
+  const list = el('serverHistoryList');
+  list.innerHTML = '';
+  if (!state.serverHistory.length) {
+    list.innerHTML = '<div class="server-history-empty">No recent connections</div>';
     return;
   }
-
-  serverHistory.forEach((entry, index) => {
+  state.serverHistory.forEach(entry => {
     const div = document.createElement('div');
     div.className = 'server-history-item';
     div.innerHTML = `
@@ -1166,306 +1109,406 @@ function renderServerHistory() {
       el('host').value = entry.host;
       el('port').value = entry.port;
       el('username').value = entry.username;
-      serverHistoryModal.classList.add('hidden');
-      openConnectionModal();
+      el('serverHistoryModal').classList.add('hidden');
+      el('connectionModal').classList.remove('hidden');
     });
-    serverHistoryList.appendChild(div);
+    list.appendChild(div);
   });
 }
 
-// Theme - detect system preference
+// SFTP Tools - Fixed for SSH connection
+el('diskUsageToggle').addEventListener('click', async () => {
+  if (!state.token) {
+    showNotification('Connect first', 'warning');
+    return;
+  }
+  try {
+    showNotification('Analyzing disk usage...', 'info');
+    const result = await api('/api/exec', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ command: `du -sh ${state.currentPath}/* 2>/dev/null | sort -hr | head -20` })
+    });
+    const lines = result.output.trim().split('\n').filter(l => l);
+    if (!lines.length) {
+      showNotification('No data', 'info');
+      return;
+    }
+    let message = 'Top 20 largest items:\n\n' + lines.join('\n');
+    el('alertTitle').textContent = 'Disk Usage - ' + state.currentPath;
+    el('alertMessage').textContent = message;
+    el('alertMessage').style.whiteSpace = 'pre-wrap';
+    el('alertMessage').style.fontFamily = 'monospace';
+    el('alertMessage').style.fontSize = '12px';
+    el('alertModal').classList.remove('hidden');
+    el('okAlert').onclick = () => {
+      el('alertModal').classList.add('hidden');
+      el('alertMessage').style.whiteSpace = '';
+      el('alertMessage').style.fontFamily = '';
+      el('alertMessage').style.fontSize = '';
+    };
+    el('closeAlert').onclick = el('okAlert').onclick;
+  } catch (err) {
+    showNotification(`Failed: ${err.message}`, 'error');
+  }
+});
+
+el('findDuplicatesToggle').addEventListener('click', async () => {
+  if (!state.token) {
+    showNotification('Connect first', 'warning');
+    return;
+  }
+  const confirmed = await customConfirm('Search for duplicates? May take time.', 'Find Duplicates');
+  if (!confirmed) return;
+  try {
+    showNotification('Searching...', 'info');
+    const result = await api('/api/exec', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        command: `find ${state.currentPath} -type f -exec md5sum {} + 2>/dev/null | sort | uniq -w32 -D --all-repeated=separate | head -50`
+      })
+    });
+    if (!result.output.trim()) {
+      showNotification('No duplicates found', 'success');
+      return;
+    }
+    el('alertTitle').textContent = 'Duplicate Files';
+    el('alertMessage').textContent = result.output.trim();
+    el('alertMessage').style.whiteSpace = 'pre-wrap';
+    el('alertMessage').style.fontFamily = 'monospace';
+    el('alertMessage').style.fontSize = '11px';
+    el('alertModal').classList.remove('hidden');
+    el('okAlert').onclick = () => {
+      el('alertModal').classList.add('hidden');
+      el('alertMessage').style.whiteSpace = '';
+      el('alertMessage').style.fontFamily = '';
+      el('alertMessage').style.fontSize = '';
+    };
+    el('closeAlert').onclick = el('okAlert').onclick;
+  } catch (err) {
+    showNotification(`Failed: ${err.message}`, 'error');
+  }
+});
+
+el('compressToggle').addEventListener('click', async () => {
+  if (!state.token) {
+    showNotification('Connect first', 'warning');
+    return;
+  }
+  if (!state.selectedItems.size) {
+    showNotification('Select files to compress', 'warning');
+    return;
+  }
+  const action = await customConfirm('Compress selected items?\n(OK=compress, Cancel=extract)', 'Compress or Extract');
+  if (action === null) return;
+
+  if (action) {
+    const archiveName = await customPrompt('Archive name:', 'archive.tar.gz', 'Create Archive');
+    if (!archiveName) return;
+    try {
+      const items = Array.from(state.selectedItems).map(p => p.split('/').pop()).join(' ');
+      showNotification('Compressing...', 'info');
+      const result = await api('/api/exec', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ command: `cd ${state.currentPath} && tar -czf ${archiveName} ${items}` })
+      });
+      if (result.exitCode === 0) {
+        await list(state.currentPath);
+        showNotification('Compressed successfully', 'success');
+      } else {
+        showNotification('Failed: ' + result.errorOutput, 'error');
+      }
+    } catch (err) {
+      showNotification(`Failed: ${err.message}`, 'error');
+    }
+  } else {
+    if (state.selectedItems.size !== 1) {
+      showNotification('Select exactly one archive', 'warning');
+      return;
+    }
+    const archivePath = Array.from(state.selectedItems)[0];
+    const archiveName = archivePath.split('/').pop();
+    if (!archiveName.match(/\.(tar\.gz|tgz|tar|zip|tar\.bz2)$/i)) {
+      showNotification('Unsupported format', 'error');
+      return;
+    }
+    try {
+      showNotification('Extracting...', 'info');
+      let command;
+      if (archiveName.endsWith('.tar.gz') || archiveName.endsWith('.tgz')) {
+        command = `cd ${state.currentPath} && tar -xzf ${archiveName}`;
+      } else if (archiveName.endsWith('.tar.bz2')) {
+        command = `cd ${state.currentPath} && tar -xjf ${archiveName}`;
+      } else if (archiveName.endsWith('.tar')) {
+        command = `cd ${state.currentPath} && tar -xf ${archiveName}`;
+      } else if (archiveName.endsWith('.zip')) {
+        command = `cd ${state.currentPath} && unzip -o ${archiveName}`;
+      }
+      const result = await api('/api/exec', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
+      if (result.exitCode === 0) {
+        await list(state.currentPath);
+        showNotification('Extracted successfully', 'success');
+      } else {
+        showNotification('Failed: ' + result.errorOutput, 'error');
+      }
+    } catch (err) {
+      showNotification(`Failed: ${err.message}`, 'error');
+    }
+  }
+});
+
+// Properties
+el('ctxProperties').addEventListener('click', async () => {
+  if (!state.contextItem) return;
+  try {
+    const data = await api(`/api/stat?path=${encodeURIComponent(state.contextItem.path)}`);
+    const info = data.info;
+    el('propertiesContent').innerHTML = `
+      <div class="property-row">
+        <div class="property-label">Name:</div>
+        <div class="property-value">${state.contextItem.name}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Path:</div>
+        <div class="property-value">${state.contextItem.path}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Type:</div>
+        <div class="property-value">${state.contextItem.type === 'dir' ? 'Directory' : 'File'}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Size:</div>
+        <div class="property-value">${info.size ? (info.size / 1024).toFixed(2) + ' KB' : '—'}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Permissions:</div>
+        <div class="property-value">${info.mode ? info.mode.toString(8).slice(-3) : '—'}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Owner:</div>
+        <div class="property-value">${info.uid || '—'}</div>
+      </div>
+      <div class="property-row">
+        <div class="property-label">Modified:</div>
+        <div class="property-value">${info.mtime ? new Date(info.mtime).toLocaleString() : '—'}</div>
+      </div>
+    `;
+    el('propertiesModal').classList.remove('hidden');
+    hideContextMenu();
+  } catch (err) {
+    showNotification(`Failed: ${err.message}`, 'error');
+    hideContextMenu();
+  }
+});
+
+el('closeProperties').addEventListener('click', () => el('propertiesModal').classList.add('hidden'));
+el('closePropertiesBtn').addEventListener('click', () => el('propertiesModal').classList.add('hidden'));
+el('propertiesModal').querySelector('.modal-backdrop').addEventListener('click', () => el('propertiesModal').classList.add('hidden'));
+
+// Permissions
+el('ctxPermissions').addEventListener('click', async () => {
+  if (!state.contextItem) return;
+  try {
+    const data = await api(`/api/stat?path=${encodeURIComponent(state.contextItem.path)}`);
+    const currentPerms = data.info.mode ? data.info.mode.toString(8).slice(-3) : '755';
+    el('permissionsInput').value = currentPerms;
+    el('permissionsModal').classList.remove('hidden');
+    el('permissionsInput').focus();
+    el('permissionsInput').select();
+    hideContextMenu();
+  } catch (err) {
+    showNotification(`Failed: ${err.message}`, 'error');
+    hideContextMenu();
+  }
+});
+
+el('confirmPermissions').addEventListener('click', async () => {
+  const perms = el('permissionsInput').value.trim();
+  if (!/^[0-7]{3}$/.test(perms)) {
+    showNotification('Invalid format. Use 3 digits', 'error');
+    return;
+  }
+  try {
+    await api('/api/exec', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ command: `chmod ${perms} "${state.contextItem.path}"` })
+    });
+    el('permissionsModal').classList.add('hidden');
+    await list(state.currentPath);
+    showNotification('Permissions updated', 'success');
+  } catch (err) {
+    showNotification(`Failed: ${err.message}`, 'error');
+  }
+});
+
+el('closePermissions').addEventListener('click', () => el('permissionsModal').classList.add('hidden'));
+el('cancelPermissions').addEventListener('click', () => el('permissionsModal').classList.add('hidden'));
+el('permissionsModal').querySelector('.modal-backdrop').addEventListener('click', () => el('permissionsModal').classList.add('hidden'));
+
+// Sidebar toggle
+let sidebarCollapsed = localStorage.getItem('rf_sidebarCollapsed') === 'true';
+if (sidebarCollapsed) {
+  document.body.classList.add('sidebar-collapsed');
+  elements.sidebar.classList.add('collapsed');
+}
+
+elements.sidebarToggle.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  localStorage.setItem('rf_sidebarCollapsed', sidebarCollapsed);
+  if (sidebarCollapsed) {
+    document.body.classList.add('sidebar-collapsed');
+    elements.sidebar.classList.add('collapsed');
+  } else {
+    document.body.classList.remove('sidebar-collapsed');
+    elements.sidebar.classList.remove('collapsed');
+  }
+});
+
+// Mobile menu
+const mobileMenuBtn = el('mobileMenuBtn');
+const mobileOverlay = el('mobileOverlay');
+mobileMenuBtn.addEventListener('click', () => {
+  elements.sidebar.classList.add('mobile-open');
+  mobileOverlay.classList.add('active');
+});
+mobileOverlay.addEventListener('click', () => {
+  elements.sidebar.classList.remove('mobile-open');
+  mobileOverlay.classList.remove('active');
+});
+
+// DateTime update
+function updateDateTime() {
+  if (!elements.currentDateTime) return;
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const dateStr = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  elements.currentDateTime.textContent = `${timeStr} • ${dateStr}`;
+}
+updateDateTime();
+setInterval(updateDateTime, 1000);
+
+// Update user display
+function updateUserDisplay() {
+  if (!elements.currentUser) return;
+  if (state.userHost) {
+    elements.currentUser.textContent = state.userHost;
+    elements.currentUser.style.display = '';
+  } else {
+    elements.currentUser.textContent = '';
+    elements.currentUser.style.display = 'none';
+  }
+}
+
+// Quick search inline
+let searchTimeout;
+if (elements.quickSearchInput) {
+  elements.quickSearchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim().toLowerCase();
+
+    if (!query) {
+      elements.fileListBody.innerHTML = '';
+      elements.fileGrid.innerHTML = '';
+      state.allFileItems.forEach(item => {
+        if (state.currentView === 'list') createListItem(item);
+        else createGridItem(item);
+      });
+      return;
+    }
+
+    searchTimeout = setTimeout(() => {
+      const filtered = state.allFileItems.filter(item => item.name.toLowerCase().includes(query));
+      elements.fileListBody.innerHTML = '';
+      elements.fileGrid.innerHTML = '';
+      if (!filtered.length) {
+        const msg = '<div style="padding:40px;text-align:center;color:var(--text-secondary)">No files found</div>';
+        if (state.currentView === 'list') elements.fileListBody.innerHTML = msg;
+        else elements.fileGrid.innerHTML = msg;
+      } else {
+        filtered.forEach(item => {
+          if (state.currentView === 'list') createListItem(item);
+          else createGridItem(item);
+        });
+      }
+    }, 200);
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      elements.quickSearchInput.focus();
+      elements.quickSearchInput.select();
+    }
+  });
+}
+
+// Theme
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('rf_theme', t);
 }
 
 function detectSystemTheme() {
-  const savedTheme = localStorage.getItem('rf_theme');
-  if (savedTheme) return savedTheme;
-
+  const saved = localStorage.getItem('rf_theme');
+  if (saved) return saved;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-themeToggle.addEventListener('click', () => {
+elements.themeToggle.addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme') || 'light';
   applyTheme(cur === 'light' ? 'dark' : 'light');
 });
 
-// Watch for system theme changes
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
   if (!localStorage.getItem('rf_theme')) {
     applyTheme(e.matches ? 'dark' : 'light');
   }
 });
 
-// Persist session
+// Persist
 function persist() {
-  if (token) localStorage.setItem('rf_token', token);
-  if (currentPath) localStorage.setItem('rf_path', currentPath);
-  if (userHost) localStorage.setItem('rf_userhost', userHost);
+  if (state.token) localStorage.setItem('rf_token', state.token);
+  if (state.currentPath) localStorage.setItem('rf_path', state.currentPath);
+  if (state.userHost) localStorage.setItem('rf_userhost', state.userHost);
 }
-
 setInterval(persist, 1000);
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
     hideContextMenu();
-    if (!editorModal.classList.contains('hidden')) closeEditorModalFn();
-    if (!connectionModal.classList.contains('hidden')) closeConnectionModalFn();
-    if (!quickSearchModal.classList.contains('hidden')) quickSearchModal.classList.add('hidden');
-    if (!serverHistoryModal.classList.contains('hidden')) serverHistoryModal.classList.add('hidden');
-    if (!saveConnectionModal.classList.contains('hidden')) saveConnectionModal.classList.add('hidden');
-  }
-
-  // Cmd/Ctrl + K for quick search
-  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-    e.preventDefault();
-    quickSearchToggle.click();
+    ['editorModal', 'connectionModal', 'serverHistoryModal', 'saveConnectionModal', 'propertiesModal', 'permissionsModal'].forEach(id => {
+      const modal = el(id);
+      if (modal && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+      }
+    });
   }
 });
 
-// Mobile menu
-const mobileMenuBtn = el('mobileMenuBtn');
-const sidebar = el('sidebar');
-const mobileOverlay = el('mobileOverlay');
-
-mobileMenuBtn.addEventListener('click', () => {
-  sidebar.classList.add('mobile-open');
-  mobileOverlay.classList.add('active');
-});
-
-mobileOverlay.addEventListener('click', () => {
-  sidebar.classList.remove('mobile-open');
-  mobileOverlay.classList.remove('active');
-});
-
-// Initial setup
-renderCrumbs('/');
+// Load saved data
 try {
-  favorites = JSON.parse(localStorage.getItem('rf_favorites') || '{}');
-  savedConnections = JSON.parse(localStorage.getItem('rf_savedConnections') || '[]');
-  serverHistory = JSON.parse(localStorage.getItem('rf_serverHistory') || '[]');
+  state.favorites = JSON.parse(localStorage.getItem('rf_favorites') || '{}');
+  state.savedConnections = JSON.parse(localStorage.getItem('rf_savedConnections') || '[]');
+  state.serverHistory = JSON.parse(localStorage.getItem('rf_serverHistory') || '[]');
 } catch {
-  favorites = {};
-  savedConnections = [];
-  serverHistory = [];
+  state.favorites = {};
+  state.savedConnections = [];
+  state.serverHistory = [];
 }
 
-// SFTP Tools
-const diskUsageToggle = el('diskUsageToggle');
-const findDuplicatesToggle = el('findDuplicatesToggle');
-const compressToggle = el('compressToggle');
+// Init
+renderCrumbs('/');
+renderSavedConnections();
 
-// Disk Usage Tool
-diskUsageToggle.addEventListener('click', async () => {
-  if (!token) {
-    showNotification('Please connect to a server first', 'warning');
-    return;
-  }
-
-  try {
-    showNotification('Analyzing disk usage...', 'info');
-    const result = await api('/api/exec', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ command: `du -sh ${currentPath}/* 2>/dev/null | sort -hr | head -20` })
-    });
-
-    const lines = result.output.trim().split('\n').filter(l => l);
-    if (lines.length === 0) {
-      showNotification('No disk usage data available', 'info');
-      return;
-    }
-
-    let message = 'Top 20 largest items:\n\n';
-    lines.forEach(line => {
-      message += line + '\n';
-    });
-
-    const alertModal = el('alertModal');
-    const alertTitle = el('alertTitle');
-    const alertMessage = el('alertMessage');
-    const okAlert = el('okAlert');
-    const closeAlert = el('closeAlert');
-
-    alertTitle.textContent = 'Disk Usage - ' + currentPath;
-    alertMessage.textContent = message;
-    alertMessage.style.whiteSpace = 'pre-wrap';
-    alertMessage.style.fontFamily = 'monospace';
-    alertMessage.style.fontSize = '12px';
-    alertModal.classList.remove('hidden');
-
-    const cleanup = () => {
-      alertModal.classList.add('hidden');
-      alertMessage.style.whiteSpace = '';
-      alertMessage.style.fontFamily = '';
-      alertMessage.style.fontSize = '';
-      okAlert.onclick = null;
-      closeAlert.onclick = null;
-    };
-
-    okAlert.onclick = cleanup;
-    closeAlert.onclick = cleanup;
-  } catch (err) {
-    showNotification(`Disk usage check failed: ${err.message}`, 'error');
-  }
-});
-
-// Find Duplicates Tool
-findDuplicatesToggle.addEventListener('click', async () => {
-  if (!token) {
-    showNotification('Please connect to a server first', 'warning');
-    return;
-  }
-
-  const confirmed = await customConfirm(
-    'This will search for duplicate files in the current directory. This may take some time. Continue?',
-    'Find Duplicates'
-  );
-
-  if (!confirmed) return;
-
-  try {
-    showNotification('Searching for duplicates...', 'info');
-    const result = await api('/api/exec', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        command: `find ${currentPath} -type f -exec md5sum {} + 2>/dev/null | sort | uniq -w32 -D --all-repeated=separate | head -50`
-      })
-    });
-
-    if (!result.output.trim()) {
-      showNotification('No duplicate files found', 'success');
-      return;
-    }
-
-    const alertModal = el('alertModal');
-    const alertTitle = el('alertTitle');
-    const alertMessage = el('alertMessage');
-    const okAlert = el('okAlert');
-    const closeAlert = el('closeAlert');
-
-    alertTitle.textContent = 'Duplicate Files Found';
-    alertMessage.textContent = result.output.trim();
-    alertMessage.style.whiteSpace = 'pre-wrap';
-    alertMessage.style.fontFamily = 'monospace';
-    alertMessage.style.fontSize = '11px';
-    alertModal.classList.remove('hidden');
-
-    const cleanup = () => {
-      alertModal.classList.add('hidden');
-      alertMessage.style.whiteSpace = '';
-      alertMessage.style.fontFamily = '';
-      alertMessage.style.fontSize = '';
-      okAlert.onclick = null;
-      closeAlert.onclick = null;
-    };
-
-    okAlert.onclick = cleanup;
-    closeAlert.onclick = cleanup;
-  } catch (err) {
-    showNotification(`Duplicate search failed: ${err.message}`, 'error');
-  }
-});
-
-// Compress/Extract Tool
-compressToggle.addEventListener('click', async () => {
-  if (!token) {
-    showNotification('Please connect to a server first', 'warning');
-    return;
-  }
-
-  if (selectedItems.size === 0) {
-    showNotification('Please select files or folders to compress', 'warning');
-    return;
-  }
-
-  const action = await customConfirm(
-    'Compress selected items?\n(Click OK to compress, Cancel to extract)',
-    'Compress or Extract'
-  );
-
-  if (action === null) return;
-
-  if (action) {
-    // Compress
-    const archiveName = await customPrompt('Archive name:', 'archive.tar.gz', 'Create Archive');
-    if (!archiveName) return;
-
-    try {
-      const items = Array.from(selectedItems).map(p => {
-        const parts = p.split('/');
-        return parts[parts.length - 1];
-      }).join(' ');
-
-      showNotification('Compressing files...', 'info');
-      const result = await api('/api/exec', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          command: `cd ${currentPath} && tar -czf ${archiveName} ${items}`
-        })
-      });
-
-      if (result.exitCode === 0) {
-        await list(currentPath);
-        showNotification('Files compressed successfully', 'success');
-      } else {
-        showNotification('Compression failed: ' + result.errorOutput, 'error');
-      }
-    } catch (err) {
-      showNotification(`Compression failed: ${err.message}`, 'error');
-    }
-  } else {
-    // Extract
-    if (selectedItems.size !== 1) {
-      showNotification('Please select exactly one archive file to extract', 'warning');
-      return;
-    }
-
-    const archivePath = Array.from(selectedItems)[0];
-    const archiveName = archivePath.split('/').pop();
-
-    if (!archiveName.match(/\.(tar\.gz|tgz|tar|zip|tar\.bz2)$/i)) {
-      showNotification('Unsupported archive format. Supported: .tar.gz, .tgz, .tar, .zip, .tar.bz2', 'error');
-      return;
-    }
-
-    try {
-      showNotification('Extracting archive...', 'info');
-
-      let command;
-      if (archiveName.endsWith('.tar.gz') || archiveName.endsWith('.tgz')) {
-        command = `cd ${currentPath} && tar -xzf ${archiveName}`;
-      } else if (archiveName.endsWith('.tar.bz2')) {
-        command = `cd ${currentPath} && tar -xjf ${archiveName}`;
-      } else if (archiveName.endsWith('.tar')) {
-        command = `cd ${currentPath} && tar -xf ${archiveName}`;
-      } else if (archiveName.endsWith('.zip')) {
-        command = `cd ${currentPath} && unzip -o ${archiveName}`;
-      }
-
-      const result = await api('/api/exec', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ command })
-      });
-
-      if (result.exitCode === 0) {
-        await list(currentPath);
-        showNotification('Archive extracted successfully', 'success');
-      } else {
-        showNotification('Extraction failed: ' + result.errorOutput, 'error');
-      }
-    } catch (err) {
-      showNotification(`Extraction failed: ${err.message}`, 'error');
-    }
-  }
-});
-
-// Try to restore session
+// Try restore session
 (async function tryRestore() {
   const theme = detectSystemTheme();
   applyTheme(theme);
@@ -1476,18 +1519,19 @@ compressToggle.addEventListener('click', async () => {
 
   if (!savedToken) return;
 
-  token = savedToken;
-  currentPath = savedPath;
-  userHost = uh;
+  state.token = savedToken;
+  state.currentPath = savedPath;
+  state.userHost = uh;
 
   try {
-    await list(currentPath);
+    await list(state.currentPath);
     setStatus(uh ? `Connected: ${uh}` : 'Connected', true);
     document.body.setAttribute('data-connected', 'true');
     renderFavorites();
+    updateUserDisplay();
   } catch {
-    token = null;
-    userHost = null;
+    state.token = null;
+    state.userHost = null;
     setStatus('Not connected');
     document.body.setAttribute('data-connected', 'false');
     localStorage.removeItem('rf_token');

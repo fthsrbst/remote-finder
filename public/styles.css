@@ -166,14 +166,19 @@ header {
 .sidebar-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
   font-size: 12px;
   position: relative;
   overflow: hidden;
+}
+
+.sidebar-item svg {
+  flex-shrink: 0;
+  margin-right: 0;
 }
 
 .sidebar-item:hover {
@@ -186,6 +191,7 @@ header {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-left: 0;
 }
 
 .sidebar-item-action {
@@ -230,13 +236,32 @@ header {
   border-bottom: 1px solid var(--border);
   background: var(--panel);
   min-height: 48px;
+  flex-wrap: nowrap;
 }
 
 .toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.toolbar-left {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.toolbar-right {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.toolbar-right::-webkit-scrollbar {
+  height: 0;
+  display: none;
 }
 
 .breadcrumbs {

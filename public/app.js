@@ -6,11 +6,12 @@ let currentPath = '/';
 let userHost = null;
 let backStack = [];
 let fwdStack = [];
-let profiles = [];
+let savedConnections = [];
+let serverHistory = [];
 let favorites = {};
-let selectedItem = null;
+let selectedItems = new Set(); // Multi-select support
 let contextItem = null;
-let currentView = 'list'; // 'list' or 'grid'
+let currentView = 'list';
 let terminalOpen = false;
 
 // Elements
@@ -19,10 +20,10 @@ const connectBtn = el('connectBtn');
 const connectModalBtn = el('connectModalBtn');
 const emptyConnectBtn = el('emptyConnectBtn');
 const headerDisconnect = el('headerDisconnect');
-const profilesEl = el('profiles');
 const favoritesEl = el('favorites');
 const themeToggle = el('themeToggle');
 const refreshBtn = el('refreshBtn');
+const trashBtn = el('trashBtn');
 const newFolderBtn = el('newFolderBtn');
 const newFileBtn = el('newFileBtn');
 const fileInput = el('fileInput');
@@ -41,6 +42,8 @@ const terminalPanel = el('terminalPanel');
 const terminalBody = el('terminalBody');
 const closeTerminal = el('closeTerminal');
 const mainContent = document.querySelector('.main-content');
+const quickSearchToggle = el('quickSearchToggle');
+const serverHistoryToggle = el('serverHistoryToggle');
 
 // Modals
 const connectionModal = el('connectionModal');
@@ -52,6 +55,19 @@ const cancelEditBtn = el('cancelEditBtn');
 const editorTitle = el('editorTitle');
 const editor = el('editor');
 const saveBtn = el('saveBtn');
+const quickSearchModal = el('quickSearchModal');
+const closeQuickSearch = el('closeQuickSearch');
+const searchInput = el('searchInput');
+const searchResults = el('searchResults');
+const serverHistoryModal = el('serverHistoryModal');
+const closeServerHistory = el('closeServerHistory');
+const serverHistoryList = el('serverHistoryList');
+const saveConnectionModal = el('saveConnectionModal');
+const closeSaveConnection = el('closeSaveConnection');
+const cancelSaveConnection = el('cancelSaveConnection');
+const confirmSaveConnection = el('confirmSaveConnection');
+const saveConnName = el('saveConnName');
+const saveConnCustomName = el('saveConnCustomName');
 
 // Context Menu
 const contextMenu = el('contextMenu');
@@ -59,6 +75,87 @@ const ctxOpen = el('ctxOpen');
 const ctxDownload = el('ctxDownload');
 const ctxRename = el('ctxRename');
 const ctxDelete = el('ctxDelete');
+
+// Custom notification system (temaya uygun)
+function showNotification(message, type = 'info') {
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+
+  setTimeout(() => notification.classList.add('show'), 10);
+
+  setTimeout(() => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  }, 3000);
+}
+
+// Custom confirm dialog (temaya uygun)
+function customConfirm(message, title = 'Confirm') {
+  return new Promise((resolve) => {
+    const confirmModal = el('confirmModal');
+    const confirmTitle = el('confirmTitle');
+    const confirmMessage = el('confirmMessage');
+    const okConfirm = el('okConfirm');
+    const cancelConfirm = el('cancelConfirm');
+    const closeConfirm = el('closeConfirm');
+
+    confirmTitle.textContent = title;
+    confirmMessage.textContent = message;
+    confirmModal.classList.remove('hidden');
+
+    const cleanup = (result) => {
+      confirmModal.classList.add('hidden');
+      okConfirm.onclick = null;
+      cancelConfirm.onclick = null;
+      closeConfirm.onclick = null;
+      resolve(result);
+    };
+
+    okConfirm.onclick = () => cleanup(true);
+    cancelConfirm.onclick = () => cleanup(false);
+    closeConfirm.onclick = () => cleanup(false);
+  });
+}
+
+// Custom prompt dialog (temaya uygun)
+function customPrompt(message, defaultValue = '', title = 'Input') {
+  return new Promise((resolve) => {
+    const promptModal = el('promptModal');
+    const promptTitle = el('promptTitle');
+    const promptLabel = el('promptLabel');
+    const promptInput = el('promptInput');
+    const confirmPrompt = el('confirmPrompt');
+    const cancelPrompt = el('cancelPrompt');
+    const closePrompt = el('closePrompt');
+
+    promptTitle.textContent = title;
+    promptLabel.textContent = message;
+    promptInput.value = defaultValue;
+    promptModal.classList.remove('hidden');
+    promptInput.focus();
+    promptInput.select();
+
+    const cleanup = (result) => {
+      promptModal.classList.add('hidden');
+      confirmPrompt.onclick = null;
+      cancelPrompt.onclick = null;
+      closePrompt.onclick = null;
+      promptInput.onkeydown = null;
+      resolve(result);
+    };
+
+    confirmPrompt.onclick = () => cleanup(promptInput.value);
+    cancelPrompt.onclick = () => cleanup(null);
+    closePrompt.onclick = () => cleanup(null);
+
+    promptInput.onkeydown = (e) => {
+      if (e.key === 'Enter') cleanup(promptInput.value);
+      if (e.key === 'Escape') cleanup(null);
+    };
+  });
+}
 
 // Utility functions
 function setStatus(text, ok = false) {
@@ -123,6 +220,7 @@ async function list(pathStr) {
   const data = await api(`/api/list?path=${encodeURIComponent(pathStr)}`);
   fileListBody.innerHTML = '';
   fileGrid.innerHTML = '';
+  selectedItems.clear();
 
   for (const item of data.items) {
     if (currentView === 'list') {
@@ -192,8 +290,17 @@ function createListItem(item) {
 
   row.append(nameDiv, sizeDiv, modDiv);
 
-  // Events
-  row.addEventListener('click', () => selectItem(row));
+  // Multi-select events
+  row.addEventListener('click', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      toggleSelectItem(row);
+    } else if (e.shiftKey && selectedItems.size > 0) {
+      selectRangeItems(row);
+    } else {
+      selectSingleItem(row);
+    }
+  });
+
   row.addEventListener('dblclick', () => {
     if (item.type === 'dir') {
       changeDir(item.path);
@@ -201,6 +308,7 @@ function createListItem(item) {
       openEditor(item.path);
     }
   });
+
   row.addEventListener('contextmenu', (e) => showContextMenu(e, row));
 
   fileListBody.appendChild(row);
@@ -224,8 +332,15 @@ function createGridItem(item) {
   gridItem.appendChild(icon);
   gridItem.appendChild(nameDiv);
 
-  // Events
-  gridItem.addEventListener('click', () => selectGridItem(gridItem));
+  // Multi-select events
+  gridItem.addEventListener('click', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      toggleSelectGridItem(gridItem);
+    } else {
+      selectSingleGridItem(gridItem);
+    }
+  });
+
   gridItem.addEventListener('dblclick', () => {
     if (item.type === 'dir') {
       changeDir(item.path);
@@ -233,29 +348,65 @@ function createGridItem(item) {
       openEditor(item.path);
     }
   });
+
   gridItem.addEventListener('contextmenu', (e) => showContextMenu(e, gridItem));
 
   fileGrid.appendChild(gridItem);
 }
 
-function selectGridItem(gridItem) {
-  document.querySelectorAll('.file-grid-item').forEach(r => r.classList.remove('selected'));
-  gridItem.classList.add('selected');
-  selectedItem = {
-    path: gridItem.dataset.path,
-    type: gridItem.dataset.type,
-    name: gridItem.dataset.name
-  };
+// Multi-select functions
+function selectSingleItem(row) {
+  document.querySelectorAll('.file-item').forEach(r => r.classList.remove('selected'));
+  selectedItems.clear();
+  row.classList.add('selected');
+  selectedItems.add(row.dataset.path);
 }
 
-function selectItem(row) {
-  document.querySelectorAll('.file-item').forEach(r => r.classList.remove('selected'));
-  row.classList.add('selected');
-  selectedItem = {
-    path: row.dataset.path,
-    type: row.dataset.type,
-    name: row.dataset.name
-  };
+function toggleSelectItem(row) {
+  if (selectedItems.has(row.dataset.path)) {
+    row.classList.remove('selected');
+    selectedItems.delete(row.dataset.path);
+  } else {
+    row.classList.add('selected');
+    selectedItems.add(row.dataset.path);
+  }
+}
+
+function selectRangeItems(row) {
+  const allRows = Array.from(document.querySelectorAll('.file-item'));
+  const lastSelected = Array.from(selectedItems)[selectedItems.size - 1];
+  const lastRow = allRows.find(r => r.dataset.path === lastSelected);
+
+  if (!lastRow) {
+    selectSingleItem(row);
+    return;
+  }
+
+  const startIdx = allRows.indexOf(lastRow);
+  const endIdx = allRows.indexOf(row);
+  const [from, to] = startIdx < endIdx ? [startIdx, endIdx] : [endIdx, startIdx];
+
+  for (let i = from; i <= to; i++) {
+    allRows[i].classList.add('selected');
+    selectedItems.add(allRows[i].dataset.path);
+  }
+}
+
+function selectSingleGridItem(gridItem) {
+  document.querySelectorAll('.file-grid-item').forEach(r => r.classList.remove('selected'));
+  selectedItems.clear();
+  gridItem.classList.add('selected');
+  selectedItems.add(gridItem.dataset.path);
+}
+
+function toggleSelectGridItem(gridItem) {
+  if (selectedItems.has(gridItem.dataset.path)) {
+    gridItem.classList.remove('selected');
+    selectedItems.delete(gridItem.dataset.path);
+  } else {
+    gridItem.classList.add('selected');
+    selectedItems.add(gridItem.dataset.path);
+  }
 }
 
 async function changeDir(next) {
@@ -269,13 +420,17 @@ async function changeDir(next) {
 }
 
 // Context Menu
-function showContextMenu(e, row) {
+function showContextMenu(e, element) {
   e.preventDefault();
-  selectItem(row);
+
+  if (!selectedItems.has(element.dataset.path)) {
+    selectSingleItem(element);
+  }
+
   contextItem = {
-    path: row.dataset.path,
-    type: row.dataset.type,
-    name: row.dataset.name
+    path: element.dataset.path,
+    type: element.dataset.type,
+    name: element.dataset.name
   };
 
   // Enable/disable menu items based on type
@@ -319,54 +474,106 @@ ctxDownload.addEventListener('click', () => {
   hideContextMenu();
 });
 
-ctxRename.addEventListener('click', () => {
+ctxRename.addEventListener('click', async () => {
   if (contextItem) {
-    rename(contextItem.path);
+    await rename(contextItem.path);
   }
   hideContextMenu();
 });
 
-ctxDelete.addEventListener('click', () => {
+ctxDelete.addEventListener('click', async () => {
   if (contextItem) {
-    remove(contextItem.path, contextItem.type);
+    await remove(contextItem.path, contextItem.type);
   }
   hideContextMenu();
+});
+
+// Trash button - delete multiple selected files
+trashBtn.addEventListener('click', async () => {
+  if (selectedItems.size === 0) {
+    showNotification('No files selected', 'warning');
+    return;
+  }
+
+  const confirmed = await customConfirm(
+    `Delete ${selectedItems.size} selected item(s)?`,
+    'Delete Confirmation'
+  );
+
+  if (!confirmed) return;
+
+  const items = Array.from(selectedItems);
+  for (const path of items) {
+    try {
+      const element = document.querySelector(`[data-path="${path}"]`);
+      const type = element?.dataset.type || 'file';
+      await api('/api/delete', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ path, type })
+      });
+    } catch (err) {
+      showNotification(`Failed to delete ${path}: ${err.message}`, 'error');
+    }
+  }
+
+  showNotification(`Deleted ${items.length} item(s)`, 'success');
+  await list(currentPath);
 });
 
 // File operations
 async function download(p) {
-  const res = await api(`/api/download?path=${encodeURIComponent(p)}`);
-  const blob = await res.blob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = p.split('/').pop();
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    const res = await api(`/api/download?path=${encodeURIComponent(p)}`);
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = p.split('/').pop();
+    a.click();
+    URL.revokeObjectURL(url);
+    showNotification('Download started', 'success');
+  } catch (err) {
+    showNotification(`Download failed: ${err.message}`, 'error');
+  }
 }
 
 async function remove(p, type) {
-  if (!confirm(`Delete ${p}?`)) return;
-  await api('/api/delete', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: p, type })
-  });
-  await list(currentPath);
+  const confirmed = await customConfirm(`Delete ${p}?`, 'Delete Confirmation');
+  if (!confirmed) return;
+
+  try {
+    await api('/api/delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: p, type })
+    });
+    await list(currentPath);
+    showNotification('Deleted successfully', 'success');
+  } catch (err) {
+    showNotification(`Delete failed: ${err.message}`, 'error');
+  }
 }
 
 async function rename(oldPath) {
   const base = oldPath.split('/').pop();
   const dir = oldPath.slice(0, oldPath.length - base.length);
-  const name = prompt('New name:', base);
+  const name = await customPrompt('New name:', base, 'Rename');
   if (!name || name === base) return;
+
   const newPath = (dir.endsWith('/') ? dir : dir + '/') + name;
-  await api('/api/rename', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ oldPath, newPath })
-  });
-  await list(currentPath);
+
+  try {
+    await api('/api/rename', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ oldPath, newPath })
+    });
+    await list(currentPath);
+    showNotification('Renamed successfully', 'success');
+  } catch (err) {
+    showNotification(`Rename failed: ${err.message}`, 'error');
+  }
 }
 
 // Editor Modal
@@ -392,8 +599,9 @@ async function openEditor(p) {
         });
         await list(currentPath);
         closeEditorModalFn();
+        showNotification('File saved', 'success');
       } catch (err) {
-        alert('Save failed: ' + err.message);
+        showNotification(`Save failed: ${err.message}`, 'error');
       } finally {
         saveBtn.disabled = false;
       }
@@ -426,6 +634,28 @@ emptyConnectBtn.addEventListener('click', openConnectionModal);
 closeConnectionModal.addEventListener('click', closeConnectionModalFn);
 cancelConnectBtn.addEventListener('click', closeConnectionModalFn);
 connectionModal.querySelector('.modal-backdrop').addEventListener('click', closeConnectionModalFn);
+
+// Save connection properly
+function showSaveConnectionModal(connectionInfo) {
+  const defaultName = `${connectionInfo.username}@${connectionInfo.host}`;
+  saveConnName.textContent = defaultName;
+  saveConnCustomName.value = '';
+  saveConnectionModal.classList.remove('hidden');
+
+  return new Promise((resolve) => {
+    const cleanup = (shouldSave) => {
+      saveConnectionModal.classList.add('hidden');
+      confirmSaveConnection.onclick = null;
+      cancelSaveConnection.onclick = null;
+      closeSaveConnection.onclick = null;
+      resolve(shouldSave ? (saveConnCustomName.value || defaultName) : null);
+    };
+
+    confirmSaveConnection.onclick = () => cleanup(true);
+    cancelSaveConnection.onclick = () => cleanup(false);
+    closeSaveConnection.onclick = () => cleanup(false);
+  });
+}
 
 // Connect
 connectBtn.addEventListener('click', async () => {
@@ -463,27 +693,47 @@ connectBtn.addEventListener('click', async () => {
     renderFavorites();
     closeConnectionModalFn();
 
-    // Ask to save profile
-    const defaultName = `${username}@${host}`;
-    if (confirm(`Save this connection as "${defaultName}" for quick access?`)) {
-      const name = prompt('Profile name:', defaultName) || defaultName;
-      const storePassword = password && confirm('Store password in browser?');
+    // Add to server history
+    const historyEntry = {
+      host,
+      port,
+      username,
+      timestamp: Date.now()
+    };
+    serverHistory.unshift(historyEntry);
+    // Keep only last 10
+    serverHistory = serverHistory.slice(0, 10);
+    localStorage.setItem('rf_serverHistory', JSON.stringify(serverHistory));
+
+    // Ask to save connection
+    const connectionName = await showSaveConnectionModal({ host, port, username });
+
+    if (connectionName) {
+      const storePasswordConfirm = password ? await customConfirm(
+        'Store password in browser?',
+        'Security Warning'
+      ) : false;
+
       const id = crypto && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
-      profiles.push({
+      const newConnection = {
         id,
-        name,
+        name: connectionName,
         host,
         port,
         username,
-        password: storePassword ? password : undefined,
+        password: storePasswordConfirm ? password : undefined,
         privateKey: privateKey || undefined,
         passphrase: passphrase || undefined
-      });
-      localStorage.setItem('rf_profiles', JSON.stringify(profiles));
-      renderProfiles();
+      };
+
+      savedConnections.push(newConnection);
+      localStorage.setItem('rf_savedConnections', JSON.stringify(savedConnections));
+      showNotification('Connection saved', 'success');
     }
+
+    showNotification('Connected successfully', 'success');
   } catch (e) {
-    alert('Connection error: ' + e.message);
+    showNotification(`Connection error: ${e.message}`, 'error');
     setStatus('Not connected');
   } finally {
     connectBtn.disabled = false;
@@ -505,6 +755,7 @@ async function disconnect() {
   localStorage.removeItem('rf_token');
   localStorage.removeItem('rf_path');
   localStorage.removeItem('rf_userhost');
+  showNotification('Disconnected', 'info');
 }
 
 headerDisconnect.addEventListener('click', disconnect);
@@ -553,7 +804,7 @@ let terminalFitAddon = null;
 // Terminal toggle
 terminalToggle.addEventListener('click', () => {
   if (!token) {
-    alert('Please connect to a server first');
+    showNotification('Please connect to a server first', 'warning');
     return;
   }
   terminalOpen = !terminalOpen;
@@ -575,23 +826,25 @@ closeTerminal.addEventListener('click', () => {
   destroyRealTerminal();
 });
 
-// Real interactive terminal with xterm.js
+// Real interactive terminal with xterm.js - optimized
 function initRealTerminal() {
   if (terminalInstance) return;
 
   terminalBody.innerHTML = '';
 
-  // Create xterm instance
+  // Create xterm instance with optimized settings
   terminalInstance = new Terminal({
     cursorBlink: true,
     fontSize: 13,
     fontFamily: 'ui-monospace, "SF Mono", "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace',
     theme: {
-      background: '#1e1e1e',
-      foreground: '#d4d4d4',
-      cursor: '#d4d4d4'
+      background: document.documentElement.getAttribute('data-theme') === 'dark' ? '#1e1e1e' : '#ffffff',
+      foreground: document.documentElement.getAttribute('data-theme') === 'dark' ? '#d4d4d4' : '#1d1d1f',
+      cursor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#d4d4d4' : '#1d1d1f'
     },
-    scrollback: 10000
+    scrollback: 1000, // Reduced from 10000 for better performance
+    rendererType: 'canvas', // Use canvas renderer for better performance
+    fastScrollModifier: 'shift'
   });
 
   // Fit addon
@@ -603,18 +856,22 @@ function initRealTerminal() {
     terminalFitAddon.fit();
   }, 100);
 
-  // Auto resize
+  // Throttled resize
+  let resizeTimeout;
   const resizeObserver = new ResizeObserver(() => {
-    try {
-      terminalFitAddon.fit();
-      if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
-        terminalSocket.send(JSON.stringify({
-          type: 'resize',
-          rows: terminalInstance.rows,
-          cols: terminalInstance.cols
-        }));
-      }
-    } catch (e) {}
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      try {
+        terminalFitAddon.fit();
+        if (terminalSocket && terminalSocket.readyState === WebSocket.OPEN) {
+          terminalSocket.send(JSON.stringify({
+            type: 'resize',
+            rows: terminalInstance.rows,
+            cols: terminalInstance.cols
+          }));
+        }
+      } catch (e) {}
+    }, 100);
   });
   resizeObserver.observe(terminalBody);
 
@@ -669,45 +926,63 @@ function destroyRealTerminal() {
 
 // File/Folder creation
 newFolderBtn.addEventListener('click', async () => {
-  const name = prompt('Folder name:');
+  const name = await customPrompt('Folder name:', '', 'New Folder');
   if (!name) return;
   const p = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + name;
-  await api('/api/mkdir', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: p })
-  });
-  await list(currentPath);
+
+  try {
+    await api('/api/mkdir', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: p })
+    });
+    await list(currentPath);
+    showNotification('Folder created', 'success');
+  } catch (err) {
+    showNotification(`Failed to create folder: ${err.message}`, 'error');
+  }
 });
 
 newFileBtn.addEventListener('click', async () => {
-  const name = prompt('File name:');
+  const name = await customPrompt('File name:', '', 'New File');
   if (!name) return;
   const p = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + name;
-  await api('/api/touch', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ path: p, content: '' })
-  });
-  await list(currentPath);
+
+  try {
+    await api('/api/touch', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ path: p, content: '' })
+    });
+    await list(currentPath);
+    showNotification('File created', 'success');
+  } catch (err) {
+    showNotification(`Failed to create file: ${err.message}`, 'error');
+  }
 });
 
-// Upload
+// Upload - multi-file support
+fileInput.setAttribute('multiple', 'true');
 fileInput.addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const target = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + file.name;
-  const form = new FormData();
-  form.append('file', file);
-  form.append('path', target);
-  try {
-    await api('/api/upload', { method: 'POST', body: form });
-    await list(currentPath);
-  } catch (err) {
-    alert('Upload failed: ' + err.message);
-  } finally {
-    e.target.value = '';
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
+
+  for (const file of files) {
+    const target = (currentPath.endsWith('/') ? currentPath : currentPath + '/') + file.name;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('path', target);
+
+    try {
+      await api('/api/upload', { method: 'POST', body: form });
+    } catch (err) {
+      showNotification(`Upload failed for ${file.name}: ${err.message}`, 'error');
+    }
   }
+
+  await list(currentPath);
+  showNotification(`Uploaded ${files.length} file(s)`, 'success');
+  e.target.value = '';
 });
 
 // Drag & drop upload
@@ -736,21 +1011,29 @@ fileList.addEventListener('drop', async (e) => {
     try {
       await api('/api/upload', { method: 'POST', body: form });
     } catch (err) {
-      alert('Failed: ' + file.name + ' - ' + err.message);
+      showNotification(`Failed: ${file.name} - ${err.message}`, 'error');
     }
   }
   await list(currentPath);
+  showNotification(`Uploaded ${files.length} file(s)`, 'success');
 });
 
 // Favorites
 favAddBtn.addEventListener('click', () => {
-  if (!userHost) return alert('Connect first');
+  if (!userHost) {
+    showNotification('Connect first', 'warning');
+    return;
+  }
   const list = favorites[userHost] || [];
-  if (list.includes(currentPath)) return alert('Already in favorites');
+  if (list.includes(currentPath)) {
+    showNotification('Already in favorites', 'info');
+    return;
+  }
   list.push(currentPath);
   favorites[userHost] = list;
   localStorage.setItem('rf_favorites', JSON.stringify(favorites));
   renderFavorites();
+  showNotification('Added to favorites', 'success');
 });
 
 function renderFavorites() {
@@ -781,17 +1064,138 @@ function renderFavorites() {
   }
 }
 
-// Profiles - Simplified (removed, keeping only favorites)
+// Quick Search
+quickSearchToggle.addEventListener('click', () => {
+  if (!token) {
+    showNotification('Please connect to a server first', 'warning');
+    return;
+  }
+  quickSearchModal.classList.remove('hidden');
+  searchInput.value = '';
+  searchResults.innerHTML = '<div class="search-empty">Type to search files...</div>';
+  searchInput.focus();
+});
 
-// Theme
+closeQuickSearch.addEventListener('click', () => {
+  quickSearchModal.classList.add('hidden');
+});
+
+quickSearchModal.querySelector('.modal-backdrop').addEventListener('click', () => {
+  quickSearchModal.classList.add('hidden');
+});
+
+// Debounced search
+let searchTimeout;
+searchInput.addEventListener('input', async (e) => {
+  clearTimeout(searchTimeout);
+  const query = e.target.value.trim().toLowerCase();
+
+  if (!query) {
+    searchResults.innerHTML = '<div class="search-empty">Type to search files...</div>';
+    return;
+  }
+
+  searchTimeout = setTimeout(async () => {
+    try {
+      const data = await api(`/api/list?path=${encodeURIComponent(currentPath)}`);
+      const filtered = data.items.filter(item =>
+        item.name.toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        searchResults.innerHTML = '<div class="search-empty">No results found</div>';
+        return;
+      }
+
+      searchResults.innerHTML = '';
+      filtered.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+          <div class="file-icon ${item.type === 'dir' ? 'folder' : 'file'}">${getFileIcon(item.name, item.type)}</div>
+          <span>${item.name}</span>
+        `;
+        div.addEventListener('click', () => {
+          if (item.type === 'dir') {
+            changeDir(item.path);
+          } else {
+            openEditor(item.path);
+          }
+          quickSearchModal.classList.add('hidden');
+        });
+        searchResults.appendChild(div);
+      });
+    } catch (err) {
+      searchResults.innerHTML = `<div class="search-empty">Error: ${err.message}</div>`;
+    }
+  }, 300);
+});
+
+// Server History
+serverHistoryToggle.addEventListener('click', () => {
+  serverHistoryModal.classList.remove('hidden');
+  renderServerHistory();
+});
+
+closeServerHistory.addEventListener('click', () => {
+  serverHistoryModal.classList.add('hidden');
+});
+
+serverHistoryModal.querySelector('.modal-backdrop').addEventListener('click', () => {
+  serverHistoryModal.classList.add('hidden');
+});
+
+function renderServerHistory() {
+  serverHistoryList.innerHTML = '';
+
+  if (serverHistory.length === 0) {
+    serverHistoryList.innerHTML = '<div class="server-history-empty">No recent connections</div>';
+    return;
+  }
+
+  serverHistory.forEach((entry, index) => {
+    const div = document.createElement('div');
+    div.className = 'server-history-item';
+    div.innerHTML = `
+      <div class="server-history-info">
+        <div class="server-history-host">${entry.username}@${entry.host}:${entry.port}</div>
+        <div class="server-history-time">${new Date(entry.timestamp).toLocaleString()}</div>
+      </div>
+    `;
+    div.addEventListener('click', () => {
+      el('host').value = entry.host;
+      el('port').value = entry.port;
+      el('username').value = entry.username;
+      serverHistoryModal.classList.add('hidden');
+      openConnectionModal();
+    });
+    serverHistoryList.appendChild(div);
+  });
+}
+
+// Theme - detect system preference
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
   localStorage.setItem('rf_theme', t);
 }
 
+function detectSystemTheme() {
+  const savedTheme = localStorage.getItem('rf_theme');
+  if (savedTheme) return savedTheme;
+
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+
 themeToggle.addEventListener('click', () => {
   const cur = document.documentElement.getAttribute('data-theme') || 'light';
   applyTheme(cur === 'light' ? 'dark' : 'light');
+});
+
+// Watch for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  if (!localStorage.getItem('rf_theme')) {
+    applyTheme(e.matches ? 'dark' : 'light');
+  }
 });
 
 // Persist session
@@ -809,21 +1213,261 @@ document.addEventListener('keydown', (e) => {
     hideContextMenu();
     if (!editorModal.classList.contains('hidden')) closeEditorModalFn();
     if (!connectionModal.classList.contains('hidden')) closeConnectionModalFn();
+    if (!quickSearchModal.classList.contains('hidden')) quickSearchModal.classList.add('hidden');
+    if (!serverHistoryModal.classList.contains('hidden')) serverHistoryModal.classList.add('hidden');
+    if (!saveConnectionModal.classList.contains('hidden')) saveConnectionModal.classList.add('hidden');
   }
+
+  // Cmd/Ctrl + K for quick search
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    quickSearchToggle.click();
+  }
+});
+
+// Mobile menu
+const mobileMenuBtn = el('mobileMenuBtn');
+const sidebar = el('sidebar');
+const mobileOverlay = el('mobileOverlay');
+
+mobileMenuBtn.addEventListener('click', () => {
+  sidebar.classList.add('mobile-open');
+  mobileOverlay.classList.add('active');
+});
+
+mobileOverlay.addEventListener('click', () => {
+  sidebar.classList.remove('mobile-open');
+  mobileOverlay.classList.remove('active');
 });
 
 // Initial setup
 renderCrumbs('/');
 try {
   favorites = JSON.parse(localStorage.getItem('rf_favorites') || '{}');
+  savedConnections = JSON.parse(localStorage.getItem('rf_savedConnections') || '[]');
+  serverHistory = JSON.parse(localStorage.getItem('rf_serverHistory') || '[]');
 } catch {
   favorites = {};
+  savedConnections = [];
+  serverHistory = [];
 }
+
+// SFTP Tools
+const diskUsageToggle = el('diskUsageToggle');
+const findDuplicatesToggle = el('findDuplicatesToggle');
+const compressToggle = el('compressToggle');
+
+// Disk Usage Tool
+diskUsageToggle.addEventListener('click', async () => {
+  if (!token) {
+    showNotification('Please connect to a server first', 'warning');
+    return;
+  }
+
+  try {
+    showNotification('Analyzing disk usage...', 'info');
+    const result = await api('/api/exec', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ command: `du -sh ${currentPath}/* 2>/dev/null | sort -hr | head -20` })
+    });
+
+    const lines = result.output.trim().split('\n').filter(l => l);
+    if (lines.length === 0) {
+      showNotification('No disk usage data available', 'info');
+      return;
+    }
+
+    let message = 'Top 20 largest items:\n\n';
+    lines.forEach(line => {
+      message += line + '\n';
+    });
+
+    const alertModal = el('alertModal');
+    const alertTitle = el('alertTitle');
+    const alertMessage = el('alertMessage');
+    const okAlert = el('okAlert');
+    const closeAlert = el('closeAlert');
+
+    alertTitle.textContent = 'Disk Usage - ' + currentPath;
+    alertMessage.textContent = message;
+    alertMessage.style.whiteSpace = 'pre-wrap';
+    alertMessage.style.fontFamily = 'monospace';
+    alertMessage.style.fontSize = '12px';
+    alertModal.classList.remove('hidden');
+
+    const cleanup = () => {
+      alertModal.classList.add('hidden');
+      alertMessage.style.whiteSpace = '';
+      alertMessage.style.fontFamily = '';
+      alertMessage.style.fontSize = '';
+      okAlert.onclick = null;
+      closeAlert.onclick = null;
+    };
+
+    okAlert.onclick = cleanup;
+    closeAlert.onclick = cleanup;
+  } catch (err) {
+    showNotification(`Disk usage check failed: ${err.message}`, 'error');
+  }
+});
+
+// Find Duplicates Tool
+findDuplicatesToggle.addEventListener('click', async () => {
+  if (!token) {
+    showNotification('Please connect to a server first', 'warning');
+    return;
+  }
+
+  const confirmed = await customConfirm(
+    'This will search for duplicate files in the current directory. This may take some time. Continue?',
+    'Find Duplicates'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    showNotification('Searching for duplicates...', 'info');
+    const result = await api('/api/exec', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        command: `find ${currentPath} -type f -exec md5sum {} + 2>/dev/null | sort | uniq -w32 -D --all-repeated=separate | head -50`
+      })
+    });
+
+    if (!result.output.trim()) {
+      showNotification('No duplicate files found', 'success');
+      return;
+    }
+
+    const alertModal = el('alertModal');
+    const alertTitle = el('alertTitle');
+    const alertMessage = el('alertMessage');
+    const okAlert = el('okAlert');
+    const closeAlert = el('closeAlert');
+
+    alertTitle.textContent = 'Duplicate Files Found';
+    alertMessage.textContent = result.output.trim();
+    alertMessage.style.whiteSpace = 'pre-wrap';
+    alertMessage.style.fontFamily = 'monospace';
+    alertMessage.style.fontSize = '11px';
+    alertModal.classList.remove('hidden');
+
+    const cleanup = () => {
+      alertModal.classList.add('hidden');
+      alertMessage.style.whiteSpace = '';
+      alertMessage.style.fontFamily = '';
+      alertMessage.style.fontSize = '';
+      okAlert.onclick = null;
+      closeAlert.onclick = null;
+    };
+
+    okAlert.onclick = cleanup;
+    closeAlert.onclick = cleanup;
+  } catch (err) {
+    showNotification(`Duplicate search failed: ${err.message}`, 'error');
+  }
+});
+
+// Compress/Extract Tool
+compressToggle.addEventListener('click', async () => {
+  if (!token) {
+    showNotification('Please connect to a server first', 'warning');
+    return;
+  }
+
+  if (selectedItems.size === 0) {
+    showNotification('Please select files or folders to compress', 'warning');
+    return;
+  }
+
+  const action = await customConfirm(
+    'Compress selected items?\n(Click OK to compress, Cancel to extract)',
+    'Compress or Extract'
+  );
+
+  if (action === null) return;
+
+  if (action) {
+    // Compress
+    const archiveName = await customPrompt('Archive name:', 'archive.tar.gz', 'Create Archive');
+    if (!archiveName) return;
+
+    try {
+      const items = Array.from(selectedItems).map(p => {
+        const parts = p.split('/');
+        return parts[parts.length - 1];
+      }).join(' ');
+
+      showNotification('Compressing files...', 'info');
+      const result = await api('/api/exec', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          command: `cd ${currentPath} && tar -czf ${archiveName} ${items}`
+        })
+      });
+
+      if (result.exitCode === 0) {
+        await list(currentPath);
+        showNotification('Files compressed successfully', 'success');
+      } else {
+        showNotification('Compression failed: ' + result.errorOutput, 'error');
+      }
+    } catch (err) {
+      showNotification(`Compression failed: ${err.message}`, 'error');
+    }
+  } else {
+    // Extract
+    if (selectedItems.size !== 1) {
+      showNotification('Please select exactly one archive file to extract', 'warning');
+      return;
+    }
+
+    const archivePath = Array.from(selectedItems)[0];
+    const archiveName = archivePath.split('/').pop();
+
+    if (!archiveName.match(/\.(tar\.gz|tgz|tar|zip|tar\.bz2)$/i)) {
+      showNotification('Unsupported archive format. Supported: .tar.gz, .tgz, .tar, .zip, .tar.bz2', 'error');
+      return;
+    }
+
+    try {
+      showNotification('Extracting archive...', 'info');
+
+      let command;
+      if (archiveName.endsWith('.tar.gz') || archiveName.endsWith('.tgz')) {
+        command = `cd ${currentPath} && tar -xzf ${archiveName}`;
+      } else if (archiveName.endsWith('.tar.bz2')) {
+        command = `cd ${currentPath} && tar -xjf ${archiveName}`;
+      } else if (archiveName.endsWith('.tar')) {
+        command = `cd ${currentPath} && tar -xf ${archiveName}`;
+      } else if (archiveName.endsWith('.zip')) {
+        command = `cd ${currentPath} && unzip -o ${archiveName}`;
+      }
+
+      const result = await api('/api/exec', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
+
+      if (result.exitCode === 0) {
+        await list(currentPath);
+        showNotification('Archive extracted successfully', 'success');
+      } else {
+        showNotification('Extraction failed: ' + result.errorOutput, 'error');
+      }
+    } catch (err) {
+      showNotification(`Extraction failed: ${err.message}`, 'error');
+    }
+  }
+});
 
 // Try to restore session
 (async function tryRestore() {
-  const theme = localStorage.getItem('rf_theme') ||
-    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const theme = detectSystemTheme();
   applyTheme(theme);
 
   const savedToken = localStorage.getItem('rf_token');

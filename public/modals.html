@@ -1,0 +1,106 @@
+<!-- Custom Modal Templates -->
+
+<!-- Save Connection Modal -->
+<div id="saveConnectionModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Save Connection</h3>
+      <button class="close-btn" id="closeSaveConnection">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Save this connection as "<strong id="saveConnName"></strong>" for quick access?</p>
+    </div>
+    <div class="modal-footer">
+      <button id="cancelSaveConnection" class="ghost-btn">Cancel</button>
+      <button id="confirmSaveConnection" class="primary-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prompt Modal -->
+<div id="promptModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="promptTitle">Enter value</h3>
+      <button class="close-btn" id="closePrompt">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label id="promptLabel">Value:</label>
+        <input type="text" id="promptInput" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="cancelPrompt" class="ghost-btn">Cancel</button>
+      <button id="confirmPrompt" class="primary-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div id="confirmModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="confirmTitle">Confirm</h3>
+      <button class="close-btn" id="closeConfirm">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="confirmMessage">Are you sure?</p>
+    </div>
+    <div class="modal-footer">
+      <button id="cancelConfirm" class="ghost-btn">Cancel</button>
+      <button id="okConfirm" class="primary-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Alert Modal -->
+<div id="alertModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3 id="alertTitle">Notice</h3>
+      <button class="close-btn" id="closeAlert">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="alertMessage">Message</p>
+    </div>
+    <div class="modal-footer">
+      <button id="okAlert" class="primary-btn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Search Modal -->
+<div id="quickSearchModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Quick Search</h3>
+      <button class="close-btn" id="closeQuickSearch">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <input type="text" id="searchInput" placeholder="Search files and folders..." autofocus />
+      </div>
+      <div id="searchResults" class="search-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Server History Modal -->
+<div id="serverHistoryModal" class="modal hidden">
+  <div class="modal-backdrop"></div>
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <h3>Server History</h3>
+      <button class="close-btn" id="closeServerHistory">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="serverHistoryList" class="server-history-list"></div>
+    </div>
+  </div>
+</div>

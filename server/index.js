@@ -215,6 +215,43 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, connections: connections.size });
 });
 
+// SFTP Tools API
+app.post('/api/exec', requireToken, async (req, res) => {
+  const { command } = req.body || {};
+  if (!command) return res.status(400).json({ error: 'command is required' });
+
+  const session = connections.get(req.sessionToken);
+
+  try {
+    if (!session.ssh || !session.ssh.connected) {
+      return res.status(400).json({ error: 'SSH not connected' });
+    }
+
+    session.ssh.exec(command, (err, stream) => {
+      if (err) {
+        return res.status(500).json({ error: 'Exec failed', details: err.message });
+      }
+
+      let output = '';
+      let errorOutput = '';
+
+      stream.on('data', (data) => {
+        output += data.toString('utf8');
+      });
+
+      stream.stderr.on('data', (data) => {
+        errorOutput += data.toString('utf8');
+      });
+
+      stream.on('close', (code) => {
+        res.json({ output, errorOutput, exitCode: code });
+      });
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Exec failed', details: String(err?.message || err) });
+  }
+});
+
 // WebSocket for interactive terminal
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);

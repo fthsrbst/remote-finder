@@ -47,7 +47,7 @@ A modern and minimal web-based SFTP client. Provides a user-friendly interface f
 
 ```bash
 # Clone the repository
-git clone https://github.com/fthsrbst/remote-finder.git
+git clone https://github.com/fthsrbst/sftp-remote-finder.git
 cd remote-finder
 
 # Install dependencies

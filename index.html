@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Remote Finder</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/new-features.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  </head>
+  <body data-connected="false">
+    <!-- Progress Bar -->
+    <div class="progress-bar" id="progressBar">
+      <div class="progress-bar-fill" id="progressBarFill"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+      <button class="mobile-menu-btn" id="mobileMenuBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <button class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="18" rx="1"></rect>
+          <rect x="14" y="3" width="7" height="18" rx="1"></rect>
+        </svg>
+      </button>
+
+      <div class="brand">Remote Finder</div>
+
+      <div class="header-info">
+        <span id="currentUser" class="header-user"></span>
+        <span id="currentDateTime" class="header-datetime"></span>
+      </div>
+
+      <div class="header-actions">
+        <a href="https://github.com/fthsrbst" target="_blank" class="github-link" title="View on GitHub">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+        </a>
+        <button id="themeToggle" class="ghost-btn" title="Toggle theme">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+        </button>
+        <div class="status" id="status">Not connected</div>
+        <button id="connectModalBtn" class="ghost-btn">Connect</button>
+        <button id="headerDisconnect" class="ghost-btn">Disconnect</button>
+      </div>
+    </header>
+
+    <!-- Mobile Overlay -->
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+
+    <div class="container">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar">
+        <section class="sidebar-section">
+          <div class="section-title">
+            <span>Saved Connections</span>
+          </div>
+          <div id="savedConnections" class="sidebar-list"></div>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-title">
+            <span>Favorites</span>
+          </div>
+          <div id="favorites" class="sidebar-list"></div>
+        </section>
+
+        <section class="sidebar-section">
+          <div class="section-title">
+            <span>Tools</span>
+          </div>
+          <div class="sidebar-list">
+            <div class="sidebar-item" id="terminalToggle" title="Terminal">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="4 17 10 11 4 5"></polyline>
+                <line x1="12" y1="19" x2="20" y2="19"></line>
+              </svg>
+              <span class="sidebar-item-name">Terminal</span>
+            </div>
+            <div class="sidebar-item" id="serverHistoryToggle" title="Server History">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                <polyline points="17 6 23 6 23 12"></polyline>
+              </svg>
+              <span class="sidebar-item-name">Server History</span>
+            </div>
+            <div class="sidebar-item" id="diskUsageToggle" title="Disk Usage">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+              </svg>
+              <span class="sidebar-item-name">Disk Usage</span>
+            </div>
+            <div class="sidebar-item" id="findDuplicatesToggle" title="Find Duplicates">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="sidebar-item-name">Find Duplicates</span>
+            </div>
+            <div class="sidebar-item" id="compressToggle" title="Compress/Extract">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 16 12 12 8 16"></polyline>
+                <line x1="12" y1="12" x2="12" y2="21"></line>
+                <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path>
+              </svg>
+              <span class="sidebar-item-name">Compress</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Toolbar -->
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <button id="backBtn" class="icon-btn" title="Back">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button id="forwardBtn" class="icon-btn" title="Forward">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+            <div class="breadcrumbs" id="breadcrumbs">/</div>
+          </div>
+          <div class="toolbar-right">
+            <input type="text" id="quickSearchInput" class="quick-search-input" placeholder="Search files... (Ctrl+K)" />
+            <div class="view-toggle">
+              <button id="listViewBtn" class="icon-btn active" title="List view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+              </button>
+              <button id="gridViewBtn" class="icon-btn" title="Grid view">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+              </button>
+            </div>
+            <button id="refreshBtn" class="toolbar-btn" title="Refresh">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+            <button id="trashBtn" class="toolbar-btn" title="Delete selected">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+            </button>
+            <button id="newFolderBtn" class="toolbar-btn">New Folder</button>
+            <button id="newFileBtn" class="toolbar-btn">New File</button>
+            <button id="favAddBtn" class="toolbar-btn" title="Add to favorites">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+            </button>
+            <label class="upload-btn">
+              <input type="file" id="fileInput" multiple />
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Upload
+            </label>
+          </div>
+        </div>
+
+        <!-- File List -->
+        <div class="file-list-container" id="fileListContainer">
+          <div class="file-list" id="fileList">
+            <div class="file-list-header">
+              <div class="col-name">Name</div>
+              <div class="col-size">Size</div>
+              <div class="col-modified">Modified</div>
+            </div>
+            <div class="file-list-body" id="fileListBody"></div>
+          </div>
+
+          <!-- Grid View -->
+          <div class="file-grid hidden" id="fileGrid"></div>
+        </div>
+
+        <!-- Terminal Panel -->
+        <div class="terminal-panel hidden" id="terminalPanel">
+          <div class="terminal-header">
+            <div class="terminal-tabs" id="terminalTabs"></div>
+            <div class="terminal-actions">
+              <button class="terminal-action-btn" id="newTerminalBtn" title="New Terminal">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <button class="terminal-action-btn" id="closeTerminal" title="Close Terminal Panel">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="terminal-body" id="terminalBody"></div>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="emptyState">
+          <p>Connect to a server to browse files</p>
+          <button id="emptyConnectBtn" class="primary-btn">Connect to Server</button>
+        </div>
+      </main>
+    </div>
+
+    <!-- Connection Modal -->
+    <div id="connectionModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Connect to Server</h3>
+          <button class="close-btn" id="closeConnectionModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label>Host</label>
+            <input id="host" type="text" placeholder="example.com" />
+          </div>
+          <div class="form-row">
+            <label>Port</label>
+            <input id="port" type="number" value="22" />
+          </div>
+          <div class="form-row">
+            <label>Username</label>
+            <input id="username" type="text" placeholder="root" />
+          </div>
+          <div class="form-row">
+            <label>Password</label>
+            <input id="password" type="password" placeholder="••••••" />
+          </div>
+          <div class="form-row">
+            <label>Private Key</label>
+            <textarea id="privateKey" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+          </div>
+          <div class="form-row">
+            <label>Passphrase</label>
+            <input id="passphrase" type="password" placeholder="Optional" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelConnectBtn" class="ghost-btn">Cancel</button>
+          <button id="connectBtn" class="primary-btn">Connect</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Editor Modal -->
+    <div id="editorModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-large">
+        <div class="modal-header">
+          <h3 id="editorTitle">File Editor</h3>
+          <button class="close-btn" id="closeEditorModal">✕</button>
+        </div>
+        <div class="modal-body">
+          <textarea id="editor" spellcheck="false"></textarea>
+          <div class="hint">Files over 2MB or binary files cannot be edited.</div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelEditBtn" class="ghost-btn">Cancel</button>
+          <button id="saveBtn" class="primary-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu hidden">
+      <div class="context-item" id="ctxOpen">Open/Edit</div>
+      <div class="context-item" id="ctxDownload">Download</div>
+      <div class="context-divider"></div>
+      <div class="context-item" id="ctxRename">Rename</div>
+      <div class="context-item" id="ctxDelete">Delete</div>
+      <div class="context-item" id="ctxPermissions">Permissions</div>
+      <div class="context-item" id="ctxProperties">Properties</div>
+    </div>
+
+    <!-- Alert Modal -->
+    <div id="alertModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3 id="alertTitle">Notice</h3>
+          <button class="close-btn" id="closeAlert">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="alertMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button id="okAlert" class="primary-btn">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3 id="confirmTitle">Confirm</h3>
+          <button class="close-btn" id="closeConfirm">✕</button>
+        </div>
+        <div class="modal-body">
+          <p id="confirmMessage"></p>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelConfirm" class="ghost-btn">Cancel</button>
+          <button id="okConfirm" class="primary-btn">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Prompt Modal -->
+    <div id="promptModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3 id="promptTitle">Input</h3>
+          <button class="close-btn" id="closePrompt">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label id="promptLabel">Value:</label>
+            <input type="text" id="promptInput" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelPrompt" class="ghost-btn">Cancel</button>
+          <button id="confirmPrompt" class="primary-btn">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Connection Modal -->
+    <div id="saveConnectionModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3>Save Connection</h3>
+          <button class="close-btn" id="closeSaveConnection">✕</button>
+        </div>
+        <div class="modal-body">
+          <p>Save connection as "<strong id="saveConnName"></strong>" for quick access?</p>
+          <div class="form-row">
+            <label>Connection Name (optional):</label>
+            <input type="text" id="saveConnCustomName" placeholder="My Server" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelSaveConnection" class="ghost-btn">Don't Save</button>
+          <button id="confirmSaveConnection" class="primary-btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Server History Modal -->
+    <div id="serverHistoryModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Recent Connections</h3>
+          <button class="close-btn" id="closeServerHistory">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="serverHistoryList" class="server-history-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Properties Modal -->
+    <div id="propertiesModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <div class="modal-header">
+          <h3>Properties</h3>
+          <button class="close-btn" id="closeProperties">✕</button>
+        </div>
+        <div class="modal-body">
+          <div id="propertiesContent" class="properties-content"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="closePropertiesBtn" class="primary-btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Permissions Modal -->
+    <div id="permissionsModal" class="modal hidden">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog modal-small">
+        <div class="modal-header">
+          <h3>Change Permissions</h3>
+          <button class="close-btn" id="closePermissions">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label>Permissions (chmod):</label>
+            <input type="text" id="permissionsInput" placeholder="755" maxlength="3" />
+            <div class="hint">Examples: 755 (rwxr-xr-x), 644 (rw-r--r--)</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="cancelPermissions" class="ghost-btn">Cancel</button>
+          <button id="confirmPermissions" class="primary-btn">Apply</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
